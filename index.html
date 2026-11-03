@@ -1394,6 +1394,7 @@ html[data-tema="escuro"] canvas,html[data-tema="escuro"] video,html[data-tema="e
       <p class="dica" style="margin:0 0 6px">🔒 Fica salvo só neste celular. Não vai no backup nem para o gestor.</p>
       <div id="ptAtual"></div>
       <button type="button" class="btn" id="ptGps" style="width:100%;white-space:normal;margin:4px 0 2px">📍 Preencher com minha localização atual</button>
+      <div class="dica" style="margin:0 0 4px;font-size:12.5px">🔒 Usa o GPS do celular. Para descobrir o endereço, o ponto é enviado ao serviço de mapas OpenStreetMap (pelo servidor da agenda, sem o seu nome). O endereço fica guardado só neste aparelho, cifrado. Se preferir, preencha pelo CEP.</div>
       <div class="cep-st" id="ptGpsSt" style="margin-bottom:4px"></div>
       <label for="ptCep">CEP</label>
       <div class="cep-linha"><input id="ptCep" inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" maxlength="9"><span class="cep-st" id="ptCepSt">Digite o CEP para preencher</span></div>
@@ -2226,7 +2227,7 @@ window.__agendaPrincipal = function () {
 
   /* Localização exata (coordenadas) da agência */
   let locForm = null; // { lat, lng, fonte }
-  const FONTES_LOC = { gps: "pelo GPS, na agência", endereco: "pelo endereço", manual: "colada manualmente", exemplo: "de exemplo", google: "pelo endereço (Google)" };
+  const FONTES_LOC = { gps: "pelo GPS, na agência", endereco: "pelo endereço", manual: "colada manualmente", exemplo: "de exemplo", google: "pelo endereço (Google)", osm: "pelo endereço (OpenStreetMap)" };
   const temLoc = (a) => a && typeof a.lat === "number" && typeof a.lng === "number";
   function mostrarLocForm() {
     $("aLocStatus").innerHTML = locForm ? `📍 <b>Localização salva</b> (${FONTES_LOC[locForm.fonte] || ""})<br><small>${locForm.lat.toFixed(5)}, ${locForm.lng.toFixed(5)} · <a class="link" style="font-size:13px" href="https://www.google.com/maps/search/?api=1&query=${locForm.lat},${locForm.lng}" target="_blank" rel="noopener">conferir no mapa</a></small>` : `<span style="color:#7a4b00">Sem localização exata.</span>`;
@@ -2252,6 +2253,8 @@ window.__agendaPrincipal = function () {
     endereco = String(endereco || "").replace(/,\s*s\/?n\s*$/i, "");
     const q = [endereco, cidade, uf, "Brasil"].filter(Boolean).join(", ");
     if (!endereco || !cidade) throw new Error("Preencha o endereço e a cidade para buscar a localização.");
+    // com login, quem consulta o serviço de mapas é o nosso servidor (o celular não fala direto com ele)
+    if (agSyncAtivo()) { const j = await api("geocodificar", { token: SESSAO.token, endereco, cidade, uf }); return { lat: Number(j.lat), lng: Number(j.lng), fonte: "endereco" }; }
     const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=${encodeURIComponent(q)}`, { headers: { Accept: "application/json" } });
     if (!r.ok) throw new Error("O serviço de mapas não respondeu. Tente de novo em instantes.");
     const j = await r.json();
@@ -4133,7 +4136,7 @@ window.__agendaPrincipal = function () {
       + (SESSAO && g ? "<hr>" + it("usuarios", "👥", PERFIL === "admin" ? "Usuários e estrutura" : "Minha equipe e PINs") : "")
       + '<hr><details class="ml-aj"><summary>⚙️ Ajustes</summary>' + (instalado() ? "" : it("instalar", "📲", "Instalar o app no celular"))
       + (SESSAO && !SESSAO.demo ? it("pin", "🔑", "Alterar meu PIN") + (BIO.disp ? (BIO.ativoPara(SESSAO.usuario.email) ? it("bioLock", "🔒", "Bloquear agora") + it("bioOff", "🔐", "Desativar digital/rosto") : it("bioOn", "🔐", "Usar digital/rosto neste aparelho")) : "") : "")
-      + it("tema", "🌓", "Tema: " + temaRotulo()) + it("limpar", "🧹", "Limpar dados do aparelho") + '<div class="ml-ver">Versão 2026-11-02 · etapa 2a · cofre' + (SESSAO && SESSAO.demo ? " · MODO TESTE" : "") + '</div></details>' + `<button type="button" data-menu="sair" class="sair-m"><span class="mi">↩</span>Sair / trocar de usuário</button>`;
+      + it("tema", "🌓", "Tema: " + temaRotulo()) + it("limpar", "🧹", "Limpar dados do aparelho") + '<div class="ml-ver">Versão 2026-11-02 · etapa 2a · cofre · mapas pelo servidor' + (SESSAO && SESSAO.demo ? " · MODO TESTE" : "") + '</div></details>' + `<button type="button" data-menu="sair" class="sair-m"><span class="mi">↩</span>Sair / trocar de usuário</button>`;
   }
   $("btnMenu").addEventListener("click", () => { fecharOv("popNotif"); renderMenu(); abrirOv("menuLat"); });
   $("mlItens").addEventListener("click", (e) => {
@@ -4566,9 +4569,13 @@ window.__agendaPrincipal = function () {
   // Localização atual → endereço (consulta reversa no OpenStreetMap); os campos ficam para conferir antes de salvar
   const UF_NOME = { "acre": "AC", "alagoas": "AL", "amapa": "AP", "amazonas": "AM", "bahia": "BA", "ceara": "CE", "distrito federal": "DF", "espirito santo": "ES", "goias": "GO", "maranhao": "MA", "mato grosso": "MT", "mato grosso do sul": "MS", "minas gerais": "MG", "para": "PA", "paraiba": "PB", "parana": "PR", "pernambuco": "PE", "piaui": "PI", "rio de janeiro": "RJ", "rio grande do norte": "RN", "rio grande do sul": "RS", "rondonia": "RO", "roraima": "RR", "santa catarina": "SC", "sao paulo": "SP", "sergipe": "SE", "tocantins": "TO" };
   async function enderecoDaPosicao(lat, lng) {
-    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=18&accept-language=pt-BR&lat=${lat}&lon=${lng}`, { headers: { Accept: "application/json" } });
-    if (!r.ok) throw new Error("falhou");
-    const a = (await r.json()).address || {};
+    let a;
+    if (agSyncAtivo()) a = (await api("enderecoDoPonto", { token: SESSAO.token, lat, lng })).address || {};
+    else {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=18&accept-language=pt-BR&lat=${lat}&lon=${lng}`, { headers: { Accept: "application/json" } });
+      if (!r.ok) throw new Error("falhou");
+      a = (await r.json()).address || {};
+    }
     const iso = a["ISO3166-2-lvl4"] || "";
     return { rua: a.road || a.pedestrian || a.residential || "", numero: a.house_number || "", bairro: a.suburb || a.neighbourhood || a.quarter || "", cidade: a.city || a.town || a.village || a.municipality || "", uf: iso.startsWith("BR-") ? iso.slice(3) : UF_NOME[norm(a.state)] || "", cep: a.postcode || "" };
   }

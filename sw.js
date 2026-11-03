@@ -1,7 +1,7 @@
 /* Agenda Comercial · Visual Turismo — service worker
    Guarda o app no celular para abrir rápido e funcionar sem internet.
    Os dados continuam no próprio aparelho (localStorage); este arquivo só guarda os arquivos do app. */
-const VERSAO = "agenda-v2-2026-11-02-etapa2a-cofre";
+const VERSAO = "agenda-v2-2026-11-02-etapa2a-cofre-mapas";
 const ARQUIVOS = ["./", "./index.html", "./manifest.webmanifest", "./icone-192.png", "./icone-512.png", "./icone-maskable-512.png", "./icone-180.png", "./favicon-32.png"];
 
 self.addEventListener("install", (e) => {
