@@ -356,6 +356,8 @@
   .nps-notas button { border: 1px solid #C9D4E2; background: #fff; border-radius: 6px; padding: 6px 0; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; color: #0B2540; min-width: 0; }
   .nps-notas button:nth-child(-n+7) { color: #a8261d; } .nps-notas button:nth-child(8), .nps-notas button:nth-child(9) { color: #8a5300; } .nps-notas button:nth-child(n+10) { color: #17794a; }
   .anx-bts { display: flex; gap: 8px; flex-wrap: wrap; }
+  /* Fotos e anexos: fora do projeto por enquanto (backlog) */
+  html.sem-fotos .anx-rot, html.sem-fotos .anx-bts, html.sem-fotos [data-anx-pick], html.sem-fotos #btnExportarFotos, html.sem-fotos #vAnexos, html.sem-fotos #vAnxErro { display: none !important; }
   .anx-bts .btn { flex: 1 1 140px; white-space: normal; }
   .anx-lista { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .anx { position: relative; width: 74px; height: 74px; border-radius: 10px; overflow: hidden; border: 1px solid #DCE4EE; background: #F3F6FA; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #566B82; text-align: center; cursor: pointer; padding: 0; }
@@ -835,7 +837,7 @@ html[data-tema="escuro"] canvas,html[data-tema="escuro"] video,html[data-tema="e
             </div>
           </div>
           <div id="vPerguntas"></div>
-          <label>Fotos e anexos <small style="font-weight:400;color:#8A9AB0">(opcional · até 4)</small></label>
+          <label class="anx-rot">Fotos e anexos <small style="font-weight:400;color:#8A9AB0">(opcional · até 4)</small></label>
           <div class="anx-bts"><button type="button" class="btn" data-anx-pick="foto">📷 Tirar foto</button><button type="button" class="btn" data-anx-pick="arquivo">📎 Anexar arquivo</button></div>
           <div class="anx-lista" id="vAnexos"></div>
           <div class="erro" id="vAnxErro" hidden></div>
@@ -1180,17 +1182,21 @@ html[data-tema="escuro"] canvas,html[data-tema="escuro"] video,html[data-tema="e
       </div>
       <div class="bloco">
         <h2>Agendamentos para executivos</h2>
-        <p class="dica" style="margin:0 0 10px">Enquanto não temos a base on-line, cada celular guarda os próprios dados. Para o executivo receber as visitas que você agendou (e a notificação), baixe o arquivo dele e envie por WhatsApp ou e-mail. Ele abre o app e toca em <b>Importar backup</b>.</p>
+        <p class="dica" id="gAgDicaServ" style="margin:0 0 10px" hidden>A visita que você agendar chega sozinha ao celular do executivo, com notificação, na próxima sincronização.</p>
+        <p class="dica" id="gAgDicaArq" style="margin:0 0 10px">Enquanto não temos a base on-line, cada celular guarda os próprios dados. Para o executivo receber as visitas que você agendou (e a notificação), baixe o arquivo dele e envie por WhatsApp ou e-mail. Ele abre o app e toca em <b>Importar backup</b>.</p>
         <button type="button" class="btn prim" id="gAgNovo" style="margin-bottom:10px">Agendar visita para executivo</button>
         <div id="gEnvios"></div>
       </div>
       <div class="bloco">
         <h2>Dados da equipe</h2>
+        <p class="dica" id="gDadosDicaServ" style="margin:0 0 10px" hidden>Visitas, follow-ups e notificações da equipe chegam sozinhos do servidor. Não é mais preciso importar backups.</p>
+        <div id="gDadosArq">
         <p class="dica" style="margin:0 0 10px">Enquanto não há base on-line, os dados chegam pelo backup: cada executivo toca em "Enviar backup para o gestor" e manda o arquivo pelo WhatsApp ou e-mail. Aqui você importa todos de uma vez. Importar de novo só atualiza, sem duplicar.</p>
         <div class="acoes-item"><button type="button" class="btn prim" id="gImportar">Importar backups da equipe</button><button type="button" class="btn" id="gExportar">Exportar base consolidada</button></div>
         <input type="file" id="gArq" accept=".json,application/json" multiple hidden>
         <div class="msg" id="gMsg" hidden></div>
         <div class="erro" id="gErro" hidden></div>
+        </div>
         <h2 style="font-size:16px;margin-top:16px">Situação por executivo</h2>
         <ul class="lista" id="gSituacao"></ul>
       </div>
@@ -1527,6 +1533,8 @@ window.COFRE = (function () {
 })();
 window.__agendaPrincipal = function () {
   "use strict";
+  const FOTOS_ATIVAS = false; // backlog: fotos e anexos voltam numa etapa futura
+  if (!FOTOS_ATIVAS) document.documentElement.classList.add("sem-fotos");
 
   /* ---------- Fase 2: servidor (Apps Script) ----------
      Cole em URL_API o endereço do App da Web (termina em /exec).
@@ -1668,7 +1676,23 @@ window.__agendaPrincipal = function () {
     try { const d = lerGuardado(CHAVE); if (d && d.agencias && d.visitas) { d.followups = d.followups || []; d.notificacoes = d.notificacoes || []; d.lixeira = d.lixeira || { agencias: [], visitas: [], followups: [] }; return d; } } catch (e) {}
     return { agencias: [], visitas: [], followups: [], notificacoes: [], lixeira: { agencias: [], visitas: [], followups: [] } };
   }
+  /* Índice de visitas e follow-ups por agência: evita varrer a lista inteira para cada agência
+     (com milhares de visitas, o painel do gestor ficava lento). Refeito sempre que os dados mudam. */
+  var versaoDados = 0, idxAg = { chave: "", vis: new Map(), fu: new Map() };
+  function indiceAg() {
+    const chave = versaoDados + ":" + dados.visitas.length + ":" + dados.followups.length;
+    if (idxAg.chave !== chave) {
+      const vis = new Map(), fu = new Map();
+      dados.visitas.forEach((v) => { const l = vis.get(v.clienteId); l ? l.push(v) : vis.set(v.clienteId, [v]); });
+      dados.followups.forEach((f) => { const l = fu.get(f.clienteId); l ? l.push(f) : fu.set(f.clienteId, [f]); });
+      idxAg = { chave, vis, fu };
+    }
+    return idxAg;
+  }
+  const visitasDaAg = (id) => indiceAg().vis.get(id) || [];
+  const followupsDaAg = (id) => indiceAg().fu.get(id) || [];
   function gravar() {
+    versaoDados++;
     if (window.COFRE && COFRE.ativo) {
       COFRE.gravar("dados", JSON.stringify(dados));
       if (migrarParaCofre) { migrarParaCofre = false; try { localStorage.removeItem(CHAVE); localStorage.removeItem("agenda-v1:copiaAntesImportar"); } catch (e) {} }
@@ -1779,7 +1803,7 @@ window.__agendaPrincipal = function () {
     $("nomeTopo").textContent = g ? (SESSAO ? SESSAO.usuario.nome : "Gestor") : e ? e.nome : "";
     $("entrada").hidden = !!e || g;
     // gestor e executivo veem telas diferentes
-    $("abasExec").hidden = g; $("telaGestor").hidden = !g; $("blocoBackup").hidden = g;
+    $("abasExec").hidden = g; $("telaGestor").hidden = !g; $("blocoBackup").hidden = g || agSyncAtivo();
     if (g) ["telaInicio", "telaVisita", "telaAgenda", "telaFollowup", "telaAgencia"].forEach((id) => { $(id).hidden = true; });
     else if (["telaInicio", "telaVisita", "telaAgenda", "telaFollowup", "telaAgencia"].every((id) => $(id).hidden)) abrirAba("inicio");
   }
@@ -2419,7 +2443,7 @@ window.__agendaPrincipal = function () {
   function abrirHistorico(id) {
     const a = dados.agencias.find((x) => x.id === id); if (!a) return;
     const hoje = hojeISO();
-    const vis = dados.visitas.filter((v) => v.clienteId === id);
+    const vis = visitasDaAg(id).slice();
     const fus = dados.followups.filter((f) => f.clienteId === id);
     const real = vis.filter((v) => v.status === "Realizada").sort((x, y) => (y.data + y.horario).localeCompare(x.data + x.horario));
     const prox = vis.filter((v) => v.status === "Agendada" && v.data >= hoje).sort((x, y) => (x.data + x.horario).localeCompare(y.data + y.horario))[0];
@@ -2626,7 +2650,7 @@ window.__agendaPrincipal = function () {
     return { u, dias, alteracoes, total: meus.length };
   }
   function renderAvisoBackup() {
-    if (!execAtual() || ehGestor()) { $("iniBackup").hidden = true; return; }
+    if (!execAtual() || ehGestor() || agSyncAtivo()) { $("iniBackup").hidden = true; return; }
     const b = situacaoBackup();
     const precisa = b.alteracoes > 0 && (b.dias === null || b.dias >= 7 || b.alteracoes >= 30);
     $("iniBackup").hidden = !precisa;
@@ -3094,7 +3118,7 @@ window.__agendaPrincipal = function () {
     return `<details class="vd"><summary><div class="t">${esc(a ? a.nome : "Sem agência")}</div><div class="m"><span class="st" style="background:#c0392b">Atrasado</span> ${fData(f.data)} · ${esc(nomeExec(f.executivoId))} · ${esc(f.prioridade || "Média")}</div><div class="m">${esc(f.descricao || "")}</div></summary><div class="vd-corpo">${corpo}</div></details>`;
   }
   function detalheAgencia(a) {
-    const vs = dados.visitas.filter((v) => v.clienteId === a.id);
+    const vs = visitasDaAg(a.id).slice();
     const { ult, prox } = situacaoAgencia(a);
     const corpo = blocoAgencia(a) + sec("Cadastro", lin("Executivo", esc(nomeExec(a.executivoId)), true) + lin("CNPJ", esc(a.cnpj)) + lin("Segmento", esc(a.segmento)) + lin("Potencial", esc(a.potencial)) + lin("Observações comerciais", esc(a.observacoes)) + lin("Cadastrada em", fDH(a.criadoEm)))
       + (a.status !== "Inativo" ? (() => { const sd = saudeAgencia(a); return sec("Saúde da conta", lin("Situação", `<b style="color:${SAUDE[sd.faixa].cor}">${SAUDE[sd.faixa].ic} ${SAUDE[sd.faixa].t} · ${sd.n}/100</b>`, true) + lin("Motivos", esc(sd.motivos.join(" · ")) || "Tudo em dia", true) + lin("Frequência", `Classe ${classeDe(a)}: visitar a cada ${cadenciaDe(a)} dias`, true)); })() : "")
@@ -3161,8 +3185,8 @@ window.__agendaPrincipal = function () {
   const diasDesde = (iso) => Math.round((new Date(hojeISO() + "T00:00") - new Date(iso + "T00:00")) / 864e5);
   function situacaoAgencia(a) {
     const hoje = hojeISO();
-    const ult = dados.visitas.filter((v) => v.clienteId === a.id && v.status === "Realizada").map((v) => v.data).sort().pop() || null;
-    const prox = dados.visitas.filter((v) => v.clienteId === a.id && v.status === "Agendada" && v.data >= hoje).sort((x, y) => (x.data + x.horario).localeCompare(y.data + y.horario))[0] || null;
+    const ult = visitasDaAg(a.id).filter((v) => v.status === "Realizada").map((v) => v.data).sort().pop() || null;
+    const prox = visitasDaAg(a.id).filter((v) => v.status === "Agendada" && v.data >= hoje).sort((x, y) => (x.data + x.horario).localeCompare(y.data + y.horario))[0] || null;
     return { ult, prox };
   }
   function coberturaCarteira(b, exId) {
@@ -3188,12 +3212,12 @@ window.__agendaPrincipal = function () {
     let n = 100;
     if (f.dias === null) { if (f.desdeEntrada === null || f.desdeEntrada > f.cad) { n -= a.status === "Prospect" ? 20 : 35; motivos.push("nunca visitada"); } }
     else { const r = f.dias / f.cad; if (r > 2) { n -= 35; motivos.push(`${f.dias} dias sem visita (frequência: ${f.cad})`); } else if (r > 1.5) { n -= 25; motivos.push(`${f.dias} dias sem visita (frequência: ${f.cad})`); } else if (r > 1) { n -= 15; motivos.push("passou da frequência de visita"); } }
-    const real = dados.visitas.filter((v) => v.clienteId === a.id && v.status === "Realizada" && v.sentimento).sort((x, y) => y.data.localeCompare(x.data)).slice(0, 3);
+    const real = visitasDaAg(a.id).filter((v) => v.status === "Realizada" && v.sentimento).sort((x, y) => y.data.localeCompare(x.data)).slice(0, 3);
     if (real.length) { const m = real.reduce((t, v) => t + v.sentimento, 0) / real.length; if (m < 2) { n -= 30; motivos.push("sentimento muito ruim nas últimas visitas"); } else if (m < 3) { n -= 20; motivos.push("sentimento ruim nas últimas visitas"); } else if (m < 3.6) { n -= 8; motivos.push("sentimento neutro nas últimas visitas"); } }
-    const fuAtr = dados.followups.filter((x) => x.clienteId === a.id && x.status !== "Concluído" && x.data < hoje).length;
+    const fuAtr = followupsDaAg(a.id).filter((x) => x.status !== "Concluído" && x.data < hoje).length;
     if (fuAtr) { n -= Math.min(20, fuAtr * 10); motivos.push(`${fuAtr} follow-up(s) atrasado(s)`); }
     const d60 = (() => { const d = new Date(); d.setDate(d.getDate() - 60); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
-    const cancAg = dados.visitas.filter((v) => v.clienteId === a.id && v.status === "Cancelada" && v.canceladoPor === "agencia" && v.data >= d60).length;
+    const cancAg = visitasDaAg(a.id).filter((v) => v.status === "Cancelada" && v.canceladoPor === "agencia" && v.data >= d60).length;
     if (cancAg) { n -= Math.min(15, cancAg * 7); motivos.push(`${cancAg} cancelamento(s) pela agência em 60 dias`); }
     const nps = typeof ultimoNps === "function" ? ultimoNps(a.id) : null;
     if (nps && nps.nota <= 6) { n -= 15; motivos.push(`NPS ${nps.nota} (detrator)`); }
@@ -3408,7 +3432,7 @@ window.__agendaPrincipal = function () {
       $("gLimparFiltros").hidden = !(sel.value || $("gStatusAg").value); }
     const b = baseGestor();
     const comDados = EXECUTIVOS.filter((e) => ultimaAtividade(e.id));
-    $("gAtualizacao").textContent = comDados.length ? `Dados de ${comDados.length} executivo(s) neste aparelho. Atualize em Dados › Importar backups.` : "Nenhum dado da equipe ainda. Vá em Dados e importe os backups dos executivos.";
+    $("gAtualizacao").textContent = agSyncAtivo() ? `Dados da equipe vindos do servidor · ${textoSyncCurto()}.` : comDados.length ? `Dados de ${comDados.length} executivo(s) neste aparelho. Atualize em Dados › Importar backups.` : "Nenhum dado da equipe ainda. Vá em Dados e importe os backups dos executivos.";
     const al = alertasGestor(b);
     const nAl = al.fuAtr.length + al.semReg.length;
     { const it = (n, t, sub) => `<button type="button" class="linha-graf clicavel" data-ir-alertas style="display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;padding:8px 4px;border-bottom:1px solid #EEF2F7;border-radius:0"><span><b>${t}</b><br><small style="color:#566B82">${sub}</small></span><b style="font-size:20px;color:${n ? "#c0392b" : "#2E8A62"}">${n}</b></button>`;
@@ -3614,7 +3638,7 @@ window.__agendaPrincipal = function () {
     }));
     if (t === "followups") baixarCSV(`followups-${hojeISO()}.csv`, b.followups.sort((x, y) => x.data.localeCompare(y.data)).map((f) => ({ Executivo: nomeExec(f.executivoId), Agencia: ag(f.clienteId).nome || "", Retorno: fData(f.data), Prioridade: f.prioridade || "", Situacao: f.status === "Concluído" ? "Concluído" : f.data < hojeISO() ? "Atrasado" : "Pendente", "O que fazer": f.descricao, Origem: f.origem === "manual" ? "Manual" : "Visita" })));
     if (t === "agencias") baixarCSV(`agencias-${hojeISO()}.csv`, b.agencias.sort((x, y) => x.nome.localeCompare(y.nome, "pt-BR")).map((a) => {
-      const r = dados.visitas.filter((v) => v.clienteId === a.id && v.status === "Realizada");
+      const r = visitasDaAg(a.id).filter((v) => v.status === "Realizada");
       return { Agencia: a.nome, CNPJ: a.cnpj || "", Status: a.status || "", Executivo: nomeExec(a.executivoId), Cidade: a.cidade || "", UF: a.estado || "", Segmento: a.segmento || "", Potencial: a.potencial || "", Classe: classeDe(a), "Saude da conta": (() => { const sd = saudeAgencia(a); return sd ? `${SAUDE[sd.faixa].t} (${sd.n})` : ""; })(), Concorrentes: (a.concorrentes || []).join(", "), "Nossa participacao": PART[a.participacao] || "", Contato: a.contato || "", Cargo: a.cargo || "", Telefone: a.telefone || "", WhatsApp: a.whatsapp || "", Email: a.email || "", "Visitas realizadas": r.length, "Ultima visita": r.length ? fData(r.map((v) => v.data).sort().pop()) : "", "Sentimento medio": media(r) ? media(r).toFixed(1).replace(".", ",") : "" };
     }));
   }));
@@ -4020,12 +4044,12 @@ window.__agendaPrincipal = function () {
     if (atr.length && !existe(idF)) { notificar(ex, "lembrete_fu", "Follow-ups atrasados", `Você tem ${atr.length} follow-up(s) atrasado(s).`, { id: idF }); mudou = true; }
     // backup atrasado (uma vez por semana)
     const sbk = situacaoBackup(), idB = `lem-bkp-${ex}-${sem}`;
-    if (!existe(idB) && sbk.alteracoes > 0 && (sbk.dias === null ? sbk.alteracoes >= 10 : sbk.dias >= 7)) { notificar(ex, "lembrete_backup", "Faça um backup", `${sbk.alteracoes} alteração(ões) estão só neste celular${sbk.dias === null ? "" : ` (último backup há ${sbk.dias} dias)`}. Toque para exportar.`, { id: idB }); mudou = true; }
+    if (!agSyncAtivo() && !existe(idB) && sbk.alteracoes > 0 && (sbk.dias === null ? sbk.alteracoes >= 10 : sbk.dias >= 7)) { notificar(ex, "lembrete_backup", "Faça um backup", `${sbk.alteracoes} alteração(ões) estão só neste celular${sbk.dias === null ? "" : ` (último backup há ${sbk.dias} dias)`}. Toque para exportar.`, { id: idB }); mudou = true; }
     // fim do dia: visitas sem registro ou para completar (a partir das 17h)
     { const nF = filaFecharDia().length, idFD = `lem-fechar-${ex}-${hoje}`;
       if (nF && new Date().getHours() >= 17 && !existe(idFD)) { notificar(ex, "lembrete_fechar", "Feche o dia", `${nF} visita(s) para registrar ou completar. Leva 1 minuto: toque aqui.`, { id: idFD }); mudou = true; } }
     // sexta à tarde: lembrete de enviar o backup ao gestor
-    { const d = new Date(), idS = `lem-bkpsex-${ex}-${hoje}`;
+    if (!agSyncAtivo()) { const d = new Date(), idS = `lem-bkpsex-${ex}-${hoje}`;
       if (d.getDay() === 5 && d.getHours() >= 14 && situacaoBackup().alteracoes > 0 && !existe(idS)) { notificar(ex, "lembrete_backup", "Sexta: envie seu backup", "Toque em “Enviar backup para o gestor” para ele ver sua semana.", { id: idS }); mudou = true; } }
     // visitas de amanhã
     const am = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
@@ -4131,12 +4155,12 @@ window.__agendaPrincipal = function () {
     const it = (acao, ic, t, extra = "") => `<button type="button" data-menu="${acao}"><span class="mi">${ic}</span>${t}${extra}</button>`;
     $("mlItens").innerHTML = (g
       ? it("agendar", "📅", "Agendar visita para executivo") + it("semvisita", "🏢", "Agências sem visita") + it("notif", "🔔", "Notificações da última semana", nl ? `<span class="ml-n">${nl}</span>` : "") + "<hr>" + it("painel", "📊", "Painel") + it("equipe", "👥", "Equipe") + it("roteiros", "🗺️", "Roteiros") + it("dados", "🗂️", "Dados e backups")
-      : it("notif", "🔔", "Notificações da última semana", nl ? `<span class="ml-n">${nl}</span>` : "") + "<hr>" + it("inicio", "🏠", "Início") + it("agendarExec", "➕", "Agendar visita") + it("fechar", "✅", "Fechar o dia", filaFecharDia().length ? `<span class="ml-n">${filaFecharDia().length}</span>` : "") + (agSyncAtivo() ? it("baseBusca", "🔎", "Buscar agência na base da Visual") : "") + it("planejar", "🗺️", "Montar agenda do dia") + it("partida", "📍", "Meu ponto de partida") + it("backup", "💾", "Backup dos dados") + it("lixeira", "🗑️", "Itens excluídos"))
+      : it("notif", "🔔", "Notificações da última semana", nl ? `<span class="ml-n">${nl}</span>` : "") + "<hr>" + it("inicio", "🏠", "Início") + it("agendarExec", "➕", "Agendar visita") + it("fechar", "✅", "Fechar o dia", filaFecharDia().length ? `<span class="ml-n">${filaFecharDia().length}</span>` : "") + (agSyncAtivo() ? it("baseBusca", "🔎", "Buscar agência na base da Visual") : "") + it("planejar", "🗺️", "Montar agenda do dia") + it("partida", "📍", "Meu ponto de partida") + (agSyncAtivo() ? "" : it("backup", "💾", "Backup dos dados")) + it("lixeira", "🗑️", "Itens excluídos"))
       + (agSyncAtivo() ? it("syncAg", "🔄", "Atualizar carteira de agências", `<small class="ml-sub">${esc(textoSyncCurto())}</small>`) : "")
       + (SESSAO && g ? "<hr>" + it("usuarios", "👥", PERFIL === "admin" ? "Usuários e estrutura" : "Minha equipe e PINs") : "")
       + '<hr><details class="ml-aj"><summary>⚙️ Ajustes</summary>' + (instalado() ? "" : it("instalar", "📲", "Instalar o app no celular"))
       + (SESSAO && !SESSAO.demo ? it("pin", "🔑", "Alterar meu PIN") + (BIO.disp ? (BIO.ativoPara(SESSAO.usuario.email) ? it("bioLock", "🔒", "Bloquear agora") + it("bioOff", "🔐", "Desativar digital/rosto") : it("bioOn", "🔐", "Usar digital/rosto neste aparelho")) : "") : "")
-      + it("tema", "🌓", "Tema: " + temaRotulo()) + it("limpar", "🧹", "Limpar dados do aparelho") + '<div class="ml-ver">Versão 2026-11-02 · etapa 2a · cofre · mapas pelo servidor' + (SESSAO && SESSAO.demo ? " · MODO TESTE" : "") + '</div></details>' + `<button type="button" data-menu="sair" class="sair-m"><span class="mi">↩</span>Sair / trocar de usuário</button>`;
+      + it("tema", "🌓", "Tema: " + temaRotulo()) + it("limpar", "🧹", "Limpar dados do aparelho") + '<div class="ml-ver">Versão 2026-11-02 · etapas 2a, 2b e 2c' + (SESSAO && SESSAO.demo ? " · MODO TESTE" : "") + '</div></details>' + `<button type="button" data-menu="sair" class="sair-m"><span class="mi">↩</span>Sair / trocar de usuário</button>`;
   }
   $("btnMenu").addEventListener("click", () => { fecharOv("popNotif"); renderMenu(); abrirOv("menuLat"); });
   $("mlItens").addEventListener("click", (e) => {
@@ -4175,7 +4199,7 @@ window.__agendaPrincipal = function () {
     const ex = $("gAgExec").value, ags = ex ? agenciasDoExec(ex) : [];
     $("gAgAgencia").innerHTML = `<option value="">${!ex ? "Escolha antes o executivo" : ags.length ? "Selecione a agência" : "Nenhuma agência deste executivo"}</option>` + ags.map((a) => `<option value="${a.id}">${esc(a.nome)}${a.cidade ? ` · ${esc(a.cidade)}` : ""}</option>`).join("");
     $("gAgAgencia").disabled = !ags.length;
-    $("gAgAgDica").textContent = ex && !ags.length ? "As agências chegam pelos backups do executivo (Dados › Importar backups)." : "";
+    $("gAgAgDica").textContent = ex && !ags.length ? (agSyncAtivo() ? "Este executivo ainda não tem agências na carteira. Distribua em Dados › Transferência de carteira." : "As agências chegam pelos backups do executivo (Dados › Importar backups).") : "";
     resetConflitoGestor();
   }
   function resetConflitoGestor() { gAgConfirma = false; $("gAgConflito").hidden = true; $("gAgSalvar").textContent = "Agendar e notificar"; $("gAgSalvar").classList.remove("aviso"); }
@@ -4214,8 +4238,10 @@ window.__agendaPrincipal = function () {
     $("gAgOk").hidden = false;
     $("gAgOk").innerHTML = `<h2 style="margin-top:0">✅ Visita agendada</h2>
       <p style="margin:0 0 6px"><b>${esc(ag.nome)}</b><br>${fData(data)} às ${esc(hora)} · ${esc(v.tipo)}<br>Executivo: ${esc(nomeExec(ex))}</p>
-      <p class="dica">A notificação já está pronta para ${esc(nomeExec(ex))}. Como ainda não temos a base on-line, envie o arquivo abaixo para ele (WhatsApp ou e-mail). Ele abre o app e toca em <b>Importar backup</b>; o sininho avisa na hora.</p>
-      <div class="acoes-item"><button type="button" class="btn prim" data-enviar="${ex}">Baixar arquivo para ${esc(nomeExec(ex).split(" ")[0])}</button><button type="button" class="btn" id="gAgOutra">Agendar outra</button></div>`;
+      ${agSyncAtivo() ? `<p class="dica">A visita e a notificação seguem sozinhas para ${esc(nomeExec(ex))} pelo servidor: chegam no celular dele na próxima sincronização.</p>
+      <div class="acoes-item"><button type="button" class="btn prim" id="gAgOutra">Agendar outra</button></div>` : `<p class="dica">A notificação já está pronta para ${esc(nomeExec(ex))}. Como ainda não temos a base on-line, envie o arquivo abaixo para ele (WhatsApp ou e-mail). Ele abre o app e toca em <b>Importar backup</b>; o sininho avisa na hora.</p>
+      <div class="acoes-item"><button type="button" class="btn prim" data-enviar="${ex}">Baixar arquivo para ${esc(nomeExec(ex).split(" ")[0])}</button><button type="button" class="btn" id="gAgOutra">Agendar outra</button></div>`}`;
+    if (agSyncAtivo()) sincronizarAgencias(false);
     $("gAg").querySelector(".sheet-corpo").scrollTop = 0;
   });
   $("gAgOk").addEventListener("click", (e) => { if (e.target.id === "gAgOutra") abrirAgendarGestor($("gAgExec").value); });
@@ -4269,7 +4295,7 @@ window.__agendaPrincipal = function () {
       const a = dados.agencias.find((x) => x.id === id); if (!a) return;
       a.transferencias = [...transfDe(a), { de, para, em: agora, motivo, por: "gestor" }]; a.executivoId = para; a.atualizadoEm = agora;
       if (levar) {
-        dados.visitas.filter((v) => v.clienteId === id && v.status === "Agendada" && v.data >= hoje && v.executivoId === de).forEach((v) => { v.executivoId = para; v.atualizadoEm = agora; v.observacoes = [v.observacoes, `Recebida por transferência de ${nomeExec(de)}.`].filter(Boolean).join(" "); nv++; });
+        visitasDaAg(id).filter((v) => v.status === "Agendada" && v.data >= hoje && v.executivoId === de).forEach((v) => { v.executivoId = para; v.atualizadoEm = agora; v.observacoes = [v.observacoes, `Recebida por transferência de ${nomeExec(de)}.`].filter(Boolean).join(" "); nv++; });
         dados.followups.filter((f) => f.clienteId === id && f.status !== "Concluído" && f.executivoId === de).forEach((f) => { f.executivoId = para; f.atualizadoEm = agora; nf++; });
       }
     });
@@ -4279,11 +4305,12 @@ window.__agendaPrincipal = function () {
     if (!gravar()) return;
     renderGestor(); renderTransfLista();
     $("gTrMotivo").value = "";
-    if (agSyncAtivo()) { sincronizarAgencias(false); aviso("gTrMsg", `${ids.length} agência(s) transferida(s). Elas chegam à carteira de ${nomeExec(para).split(" ")[0]} na próxima sincronização${levar && (nv || nf) ? `; as ${nv} visita(s) e ${nf} follow-up(s) ainda vão pelo arquivo em Agendamentos para executivos` : ""}.`); }
+    if (agSyncAtivo()) { sincronizarAgencias(false); aviso("gTrMsg", `${ids.length} agência(s) transferida(s). Elas chegam à carteira de ${nomeExec(para).split(" ")[0]} na próxima sincronização${levar && (nv || nf) ? `, junto com ${nv} visita(s) e ${nf} follow-up(s)` : ""}.`); }
     else aviso("gTrMsg", `${ids.length} agência(s) transferida(s)${levar ? `, com ${nv} visita(s) e ${nf} follow-up(s)` : ""}. Envie o arquivo de ${nomeExec(para).split(" ")[0]} e de ${nomeDe.split(" ")[0]} em Agendamentos para executivos.`);
   });
 
   function renderEnvios() {
+    if ($("gAgDicaServ")) { const sv = agSyncAtivo(); $("gAgDicaServ").hidden = !sv; $("gAgDicaArq").hidden = sv; $("gDadosDicaServ").hidden = !sv; $("gDadosArq").hidden = sv; if (sv) { $("gEnvios").innerHTML = ""; return; } }
     const envios = (dados.config && dados.config.envios) || {};
     const porExec = EXECUTIVOS.map((e) => {
       const vs = dados.visitas.filter((v) => v.executivoId === e.id && v.agendadoPor === "gestor");
@@ -5398,7 +5425,7 @@ window.__agendaPrincipal = function () {
     const grupo = novoId("exc"), agora = new Date().toISOString();
     const mover = (k, x) => { const i = dados[k].indexOf(x); if (i < 0) return; dados[k].splice(i, 1); lx[k].push({ ...x, excluidaEm: agora, grupoExclusao: grupo, motivoExclusao: motivo || "", principal: x === item }); };
     if (tipoPrinc === "agencia") {
-      dados.visitas.filter((v) => v.clienteId === item.id).forEach((v) => mover("visitas", v));
+      visitasDaAg(item.id).slice().forEach((v) => mover("visitas", v));
       dados.followups.filter((f) => f.clienteId === item.id).forEach((f) => mover("followups", f));
       mover("agencias", item);
     } else {
@@ -5411,7 +5438,7 @@ window.__agendaPrincipal = function () {
     if (tipo === "agencia") {
       const a = dados.agencias.find((x) => x.id === id); if (!a) return;
       if (a.srv) { alert(`“${a.nome}” faz parte da carteira oficial e não pode ser excluída pelo app.\n\nSe ela parou de comprar, edite e mude o status para Inativo. Cadastro duplicado ou errado: avise o ADM.`); return; }
-      const nv = dados.visitas.filter((v) => v.clienteId === id).length, nf = dados.followups.filter((f) => f.clienteId === id).length;
+      const nv = visitasDaAg(id).slice().length, nf = followupsDaAg(id).length;
       if (!confirm(`Excluir a agência “${a.nome}”?${nv || nf ? `\n\nJunto com ela saem ${nv} visita(s) e ${nf} follow-up(s) dela.` : ""}\n\nUse para cadastro duplicado ou feito por engano. Se a agência só parou de comprar, prefira mudar o status para Inativo.\n\nVocê pode restaurar depois em Menu › Itens excluídos.`)) return;
       excluirItens("agencia", a, "");
       if (gravar()) { atualizarTudo(); avisoFlutuante(`Agência “${a.nome}” excluída. Para desfazer: Menu › Itens excluídos.`); }
@@ -5667,7 +5694,7 @@ window.__agendaPrincipal = function () {
   /* ---------- Pesquisa de satisfação (NPS) pelo WhatsApp ---------- */
   const NPS_JANELA_DIAS = 90; // sugere nova pesquisa à mesma agência só depois disso
   function ultimoNps(agId) {
-    return dados.visitas.filter((v) => v.clienteId === agId && v.nps && v.nps.status === "Respondida").map((v) => ({ ...v.nps, visitaId: v.id })).sort((a, b) => String(b.respondidaEm).localeCompare(String(a.respondidaEm)))[0] || null;
+    return visitasDaAg(agId).filter((v) => v.nps && v.nps.status === "Respondida").map((v) => ({ ...v.nps, visitaId: v.id })).sort((a, b) => String(b.respondidaEm).localeCompare(String(a.respondidaEm)))[0] || null;
   }
   const classeNps = (n) => (n >= 9 ? "promotor" : n >= 7 ? "neutro" : "detrator");
   const NPS_ROT = { promotor: { t: "Promotor", cor: "#17794a", bg: "#E2F3EA" }, neutro: { t: "Neutro", cor: "#8a5300", bg: "#FFF1D6" }, detrator: { t: "Detrator", cor: "#a8261d", bg: "#FBE4E1" } };
@@ -5715,7 +5742,7 @@ window.__agendaPrincipal = function () {
     const a = dados.agencias.find((x) => x.id === v.clienteId) || {};
     const sd = saudeAgencia(a), fq = a.id ? freqAgencia(a) : null, nps = a.id ? ultimoNps(a.id) : null;
     const ant = dados.visitas.filter((x) => x.clienteId === a.id && x.status === "Realizada").sort((x, y) => (y.data + y.horario).localeCompare(x.data + x.horario)).slice(0, 3);
-    const fus = dados.followups.filter((f) => f.clienteId === a.id && f.status !== "Concluído").sort((x, y) => x.data.localeCompare(y.data));
+    const fus = followupsDaAg(a.id).filter((f) => f.status !== "Concluído").sort((x, y) => x.data.localeCompare(y.data));
     const canc = dados.visitas.filter((x) => x.clienteId === a.id && x.status === "Cancelada").sort((x, y) => y.data.localeCompare(x.data))[0];
     const wa = linkWhats(a.whatsapp);
     const ps = perguntasDe(v.objetivo);
@@ -5807,6 +5834,7 @@ window.__agendaPrincipal = function () {
 
   /* ---------- Listas ---------- */
   function atualizarTudo() {
+    versaoDados++;
     if (gerarLembretes()) gravar();
     atualizarTopo();
     renderSino();
@@ -5921,7 +5949,7 @@ window.__agendaPrincipal = function () {
       : agsLista.length ? agsLista.map((a) => {
           const incompleto = !a.contato && !a.telefone && !a.email && !a.whatsapp;
           const wa = linkWhats(a.whatsapp);
-          const nVis = dados.visitas.filter((v) => v.clienteId === a.id && v.status === "Realizada").length;
+          const nVis = visitasDaAg(a.id).filter((v) => v.status === "Realizada").length;
           const st = sit.get(a.id);
           const dU = st.ult ? diasDesde(st.ult) : null;
           const linhaVisita = `<br><small style="color:${dU === null || dU >= 45 ? "#a15c00" : "#566B82"}">${st.ult ? `Última visita: ${fData(st.ult)} (há ${dU} dia${dU === 1 ? "" : "s"})` : "Nunca visitada"}${st.prox ? ` · Próxima: ${fData(st.prox.data)}` : ""}</small>`;
@@ -5991,7 +6019,7 @@ window.__agendaPrincipal = function () {
   function agendarSyncAg(ms) {
     if (!syncAg || !agSyncAtivo()) return;
     clearTimeout(syncAg.timer);
-    syncAg.timer = setTimeout(() => { if (!syncAg.rodando && dados.agencias.some(agSuja)) sincronizarAgencias(false); }, ms || 2500);
+    syncAg.timer = setTimeout(() => { atualizarPendencias(); if (!syncAg.rodando && syncAg.pend) sincronizarAgencias(false); else renderSyncAg(); }, ms || 2500);
   }
   async function sincronizarAgencias(manual) {
     if (!agSyncAtivo() || !syncAg || syncAg.rodando) return;
@@ -6007,14 +6035,15 @@ window.__agendaPrincipal = function () {
     try {
       const j = await api("sincronizarAgencias", { token: SESSAO.token, desde: st.desde || "", enviar: sujas.map(paraEnvioAg) });
       const r = aplicarSyncAg(j, hEnv, st);
+      const rr = await sincronizarRegistros(lerSyncAg());
       if (primeira) avisoFlutuante(`Carteira carregada: ${r.total} agência(s).`);
-      else if (manual) avisoFlutuante(r.resumo);
-      else if (r.rejeitadas) avisoFlutuante(`${r.rejeitadas} alteração(ões) de agência não foram aceitas pelo servidor. Veja em Agências.`);
+      else if (manual) avisoFlutuante(r.resumo + (rr && rr.enviados ? ` ${rr.enviados} registro(s) de visita/follow-up enviado(s).` : ""));
+      else if (r.rejeitadas || (rr && rr.rejeitadas)) avisoFlutuante(`${(r.rejeitadas || 0) + ((rr && rr.rejeitadas) || 0)} alteração(ões) não foram aceitas pelo servidor.`);
     } catch (e) {
       st.erro = e.message; gravarSyncAg(st);
       if (e.codigo === "sessao_invalida" || e.codigo === "sem_acesso" || e.codigo === "inativo") { encerrarSessao(); alert(e.message); location.reload(); return; }
       if (manual || primeira) avisoFlutuante("Não foi possível atualizar a carteira: " + e.message);
-    } finally { syncAg.rodando = false; renderSyncAg(); }
+    } finally { syncAg.rodando = false; atualizarPendencias(); renderSyncAg(); }
   }
   function aplicarSyncAg(j, hEnv, st) {
     const porId = new Map(dados.agencias.map((a) => [a.id, a]));
@@ -6075,9 +6104,9 @@ window.__agendaPrincipal = function () {
     if (!syncAg) return;
     const els = document.querySelectorAll("[data-sync-bar]");
     if (!agSyncAtivo()) { els.forEach((el) => { el.hidden = true; }); return; }
-    const st = lerSyncAg(), pend = dados.agencias.filter(agSuja).length, recusadas = dados.agencias.filter((a) => a._syncErro && a._hErr && hashAg(a) === a._hErr).length;
+    const st = lerSyncAg(), pend = syncAg.pend || 0, recusadas = dados.agencias.filter((a) => a._syncErro && a._hErr && hashAg(a) === a._hErr).length;
     const t = syncAg.rodando ? "🔄 Atualizando a carteira…"
-      : `☁️ <b>Carteira oficial</b>${st.total !== undefined ? ` · ${st.total} agência(s)` : ""} · ${st.em ? `atualizada ${horaCurta(st.em)}` : "ainda não carregada"}`
+      : `☁️ <b>Tudo no servidor</b>${st.total !== undefined ? ` · ${st.total} agência(s)` : ""} · ${st.em ? `atualizado ${horaCurta(st.em)}` : "ainda não carregado"}`
         + (pend ? ` · ${pend} alteração(ões) a enviar` : "") + (navigator.onLine === false ? " · sem internet" : "")
         + (st.erro ? `<br><span class="erro-s">⚠️ ${esc(st.erro)}</span>` : "") + (recusadas ? `<br><span class="erro-s">⚠️ ${recusadas} agência(s) não aceitas pelo servidor (o motivo aparece nelas).</span>` : "");
     els.forEach((el) => {
@@ -6094,6 +6123,138 @@ window.__agendaPrincipal = function () {
     if (e.target.closest("[data-sync-agora]")) sincronizarAgencias(true);
     else if (e.target.closest("[data-base-abrir]")) abrirBaseSheet("");
   });
+
+  /* =====================================================================
+     Etapas 2b/2c · visitas, follow-ups, notificações e configurações no servidor
+     Mesmo jeito das agências: cópia no aparelho, envia o que mudou, recebe o que mudou.
+     Lembretes (lem-…) ficam só no aparelho. Exclusão vai como "excluída" (lixeira).
+     ===================================================================== */
+  var REG_COLS = ["visitas", "followups", "notificacoes"];
+  var REG_META = { srv: 1, _h: 1, _sAt: 1, _syncErro: 1, _hErr: 1, _base: 1 };
+  function estavel(v) {
+    if (Array.isArray(v)) return "[" + v.map(estavel).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).filter((k) => !REG_META[k] && v[k] !== undefined).sort().map((k) => JSON.stringify(k) + ":" + estavel(v[k])).join(",") + "}";
+    return JSON.stringify(v === undefined ? null : v);
+  }
+  // impressão do registro: JSON nativo (rápido), sem os campos de controle
+  const semMeta = (k, v) => (REG_META[k] ? undefined : v);
+  function hashReg(x) { const t = JSON.stringify(x, semMeta); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return String(h); }
+  const ehLembrete = (n) => /^lem-/.test(String(n.id || "")) || /^lembrete/.test(String(n.tipo || ""));
+  function meuIdSrv() { return SESSAO ? SESSAO.usuario.id : ""; }
+  function regSincronizavel(col, x) { return !!x && !x.exemplo && !(col === "notificacoes" && ehLembrete(x)); }
+  function podeEnviarReg(col, x) {
+    const daEquipe = (id) => EXECUTIVOS.some((e) => e.id === id);
+    if (PERFIL === "executivo") {
+      if (col === "notificacoes") return x.para === meuIdSrv() || (x.para === "gestor" && x.de === meuIdSrv());
+      return x.executivoId === meuIdSrv();
+    }
+    if (col === "notificacoes") return x.para === "gestor" ? daEquipe(x.de) : daEquipe(x.para);
+    return daEquipe(x.executivoId);
+  }
+  function regSujo(col, x) {
+    if (!regSincronizavel(col, x)) return false;
+    const h = hashReg(x);
+    if (x._hErr && h === x._hErr) return false;
+    return x.srv ? h !== x._h : podeEnviarReg(col, x);
+  }
+  function regsDaColecao(col) { return col === "notificacoes" ? dados.notificacoes || [] : (dados[col] || []).concat(((dados.lixeira || {})[col]) || []); }
+  function contarRegPendentes() { if (!agSyncAtivo()) return 0; let n = 0; REG_COLS.forEach((c) => { regsDaColecao(c).forEach((x) => { if (regSujo(c, x)) n++; }); }); return n + (cfgSuja() ? 1 : 0); }
+  function atualizarPendencias() { syncAg.pend = dados.agencias.filter(agSuja).length + contarRegPendentes(); return syncAg.pend; }
+  function algoParaEnviar() { return dados.agencias.some(agSuja) || REG_COLS.some((c) => regsDaColecao(c).some((x) => regSujo(c, x))) || cfgSuja(); }
+  // configurações (metas, frequência, perguntas): o gestor/ADM envia; todos recebem
+  function cfgValor() { const c = Object.assign({}, dados.config || {}); delete c.envios; return { config: c, metas: dados.metas || {} }; }
+  const hashCfg = (o) => { const t = estavel(o); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return String(h); };
+  function cfgSuja() { return agSyncAtivo() && PERFIL !== "executivo" && dados._cfgH !== undefined && hashCfg(cfgValor()) !== dados._cfgH; }
+
+  // começar do zero: o que foi feito nos testes antes desta versão não sobe para o servidor
+  function limparTestesAntigos() {
+    const corte = dados.inicio2b;
+    const antigo = (x) => !x.srv && String(x.criadoEm || "") < corte;
+    ["visitas", "followups"].forEach((k) => { dados[k] = dados[k].filter((x) => !antigo(x)); if (dados.lixeira && dados.lixeira[k]) dados.lixeira[k] = dados.lixeira[k].filter((x) => !antigo(x)); });
+    dados.notificacoes = (dados.notificacoes || []).filter((n) => ehLembrete(n) || !antigo(n));
+    dados.agencias = dados.agencias.filter((a) => a.srv || a.foraCarteira || !antigo(a));
+    if (dados.lixeira && dados.lixeira.agencias) dados.lixeira.agencias = dados.lixeira.agencias.filter((a) => !antigo(a));
+  }
+
+  async function sincronizarRegistros(st) {
+    if (!agSyncAtivo()) return null;
+    const agora = Date.now(), primeira = !st.desdeReg;
+    if (primeira) { limparTestesAntigos(); dados._cfgH = hashCfg(cfgValor()); }
+    const completo = primeira || agora - (Date.parse(st.fullReg || "") || 0) > 7 * 864e5;
+    const enviar = {}, hEnv = new Map(); let n = 0;
+    REG_COLS.forEach((c) => {
+      enviar[c] = regsDaColecao(c).filter((x) => regSujo(c, x)).slice(0, Math.max(0, 300 - n)).map((x) => {
+        hEnv.set(c + "|" + x.id, hashReg(x)); n++;
+        const o = {}; Object.keys(x).forEach((k) => { if (!REG_META[k]) o[k] = x[k]; });
+        if (x.srv && x._sAt) o._base = x._sAt;
+        return o;
+      });
+    });
+    const enviarCfg = cfgSuja(), cfgEnv = enviarCfg ? cfgValor() : null, hCfg = enviarCfg ? hashCfg(cfgEnv) : null;
+    let j;
+    try { j = await api("sincronizarRegistros", { token: SESSAO.token, desde: completo ? "" : st.desdeReg, enviar, config: cfgEnv || undefined }); }
+    catch (e) { st.erro = e.message; gravarSyncAg(st); throw e; }
+    const r = aplicarRegistros(j, hEnv);
+    if (enviarCfg) dados._cfgH = hCfg;
+    if (j.config && j.config.valor && !cfgSuja()) {
+      const v = j.config.valor, envios = (dados.config || {}).envios;
+      dados.config = Object.assign({}, v.config || {}, envios ? { envios } : {});
+      dados.metas = v.metas || {};
+      dados._cfgH = hashCfg(cfgValor());
+    }
+    Object.assign(st, { desdeReg: j.agora, erro: "" });
+    if (completo) st.fullReg = new Date().toISOString();
+    gravarSyncAg(st);
+    gravar(); atualizarTudo();
+    return r;
+  }
+  function aplicarRegistros(j, hEnv) {
+    const rej = new Map((j.rejeitadas || []).map((x) => [x.col + "|" + x.id, x]));
+    let enviados = 0, rejeitadas = 0;
+    dados.lixeira = dados.lixeira || { agencias: [], visitas: [], followups: [] };
+    REG_COLS.forEach((c) => {
+      const res = j[c]; if (!res) return;
+      if (c === "notificacoes") dados.notificacoes = dados.notificacoes || [];
+      const temLix = c !== "notificacoes";
+      // mapas por id: com milhares de registros, procurar um a um na lista ficava lento demais
+      const ativos = new Map(dados[c].map((x) => [x.id, x]));
+      const lixM = new Map(temLix ? (dados.lixeira[c] || []).map((x) => [x.id, x]) : []);
+      const pegar = (id) => ativos.get(id) || lixM.get(id);
+      const vistos = new Set(), trocados = new Set();
+      (res.registros || []).forEach((r0) => {
+        const k = c + "|" + r0.id; vistos.add(r0.id);
+        const loc = pegar(r0.id);
+        if (loc && !rej.has(k)) {
+          const h = hashReg(loc);
+          if (hEnv.has(k) ? h !== hEnv.get(k) : regSujo(c, loc)) return; // mexido aqui depois: fica o do aparelho
+        }
+        const novo = Object.assign({}, r0, { srv: true }); novo._sAt = r0._sAt;
+        ativos.delete(r0.id); lixM.delete(r0.id);
+        if (novo.excluidaEm) { if (temLix) { if (!novo.grupoExclusao) novo.grupoExclusao = "srv-" + novo.id; novo._h = hashReg(novo); lixM.set(novo.id, novo); } }
+        else { novo._h = hashReg(novo); ativos.set(novo.id, novo); }
+        trocados.add(r0.id);
+        if (hEnv.has(k) && !rej.has(k)) enviados++;
+      });
+      // saíram desta pessoa (transferência) ou, na carga completa, não existem mais no servidor
+      const sai = new Set(res.removidos || []);
+      if (res.completo) {
+        const jan = j.janela || {};
+        const naJanela = (x) => (c === "visitas" ? x.status === "Agendada" || String(x.data || "") >= jan.registros : c === "followups" ? x.status !== "Concluído" || String(x.data || "") >= jan.registros : String(x.criadoEm || "").slice(0, 10) >= jan.notificacoes);
+        ativos.forEach((x) => { if (x.srv && !vistos.has(x.id) && naJanela(x)) sai.add(x.id); });
+      }
+      sai.forEach((id) => { const x = pegar(id); if (x && !regSujo(c, x)) { ativos.delete(id); lixM.delete(id); } });
+      // recusados (permissão, etc.): ficam marcados e não são reenviados enquanto não mudarem
+      rej.forEach((x, k) => {
+        if (!k.startsWith(c + "|") || trocados.has(x.id)) return;
+        const o = pegar(x.id); if (!o) return;
+        o._syncErro = x.motivo; o._hErr = hEnv.get(k) || hashReg(o); rejeitadas++;
+      });
+      dados[c] = [...ativos.values()];
+      if (temLix) dados.lixeira[c] = [...lixM.values()];
+    });
+    return { enviados, rejeitadas };
+  }
+  if (agSyncAtivo() && !dados.inicio2b) dados.inicio2b = new Date().toISOString();
 
   /* ---------- Buscar na Base geral e trazer para a carteira ---------- */
   function abrirBaseSheet(termo) {
@@ -6148,7 +6309,7 @@ window.__agendaPrincipal = function () {
     setTimeout(() => sincronizarAgencias(false), 1500);
     setInterval(() => {
       const st = lerSyncAg();
-      if (dados.agencias.some(agSuja) || Date.now() - (Date.parse(st.em || "") || 0) > 10 * 60e3) sincronizarAgencias(false);
+      if (atualizarPendencias() || Date.now() - (Date.parse(st.em || "") || 0) > 10 * 60e3) sincronizarAgencias(false);
     }, 60e3);
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && Date.now() - syncAg.ultimaTentativa > 120e3) sincronizarAgencias(false); });
     window.addEventListener("online", () => sincronizarAgencias(false));
