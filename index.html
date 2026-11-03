@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script>try{var __t=localStorage.getItem("agenda-v1:tema");if(__t)document.documentElement.setAttribute("data-tema",__t)}catch(e){}</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agenda comercial · Visual Turismo</title>
@@ -248,6 +249,16 @@
   .mapa .zoom { position: absolute; left: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; }
   .mapa .zoom button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #C9D4E2; background: #fff; font-size: 18px; font-weight: 700; color: #0A3A68; cursor: pointer; }
   .mapa.mapa-cart { height: 360px; }
+  .sync-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: #F2F6FB; border: 1px solid #DCE4EE; border-radius: 10px; padding: 8px 10px; font-size: 13px; color: #3D5268; margin: 0 0 10px; }
+  .sync-bar .t { flex: 1 1 180px; min-width: 0; }
+  .sync-bar .t b { color: #0A3A68; }
+  .sync-bar .erro-s { color: #a8261d; }
+  .sync-bar button { font: inherit; font-size: 13px; }
+  .bs-item { border-bottom: 1px solid #EEF2F7; padding: 10px 0; }
+  .bs-item:last-child { border-bottom: 0; }
+  .bs-item small { display: block; color: #566B82; margin-top: 2px; }
+  .bs-item .acoes-item { margin-top: 6px; }
+  .ml-sub { display: block; font-size: 11.5px; color: #8A9AB0; font-weight: 400; }
   .frases, .chips-prox { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
   .frases button, .chips-prox button { border: 1px solid #C9D4E2; background: #fff; color: #0A3A68; border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 13.5px; cursor: pointer; text-align: left; max-width: 100%; white-space: normal; }
   .frases button[aria-pressed="true"], .chips-prox button[aria-pressed="true"] { background: #E3EEFA; border-color: #1A64AD; color: #0A3A68; font-weight: 600; }
@@ -653,9 +664,30 @@
     html.modo-cel .pop-notif { left: calc(50% - 200px); right: auto; width: 400px; }
     html.modo-cel #avisoFlutuante { max-width: 388px !important; }
   }
+
+/* tema escuro (primeira versão, por inversão de cores) */
+html[data-tema="escuro"]{filter:invert(1) hue-rotate(180deg);background:#fff}
+html[data-tema="escuro"] canvas,html[data-tema="escuro"] video,html[data-tema="escuro"] iframe,html[data-tema="escuro"] #demoBar{filter:invert(1) hue-rotate(180deg)}
+@media (prefers-color-scheme:dark){html:not([data-tema]){filter:invert(1) hue-rotate(180deg);background:#fff}html:not([data-tema]) canvas,html:not([data-tema]) video,html:not([data-tema]) iframe,html:not([data-tema]) #demoBar{filter:invert(1) hue-rotate(180deg)}}
+.ml-aj{margin:4px 0}.ml-aj>summary{cursor:pointer;padding:12px 16px;font-weight:600;list-style:none}.ml-aj>summary::-webkit-details-marker{display:none}.ml-ver{padding:8px 16px;font-size:12px;opacity:.65}
 </style>
 </head>
 <body>
+<!-- ===================== BLOQUEIO (digital/rosto) ===================== -->
+<div class="entrada" id="bioLock" style="z-index:200" hidden>
+  <div class="entrada-in">
+    <img id="bioLogo" alt="Visual Turismo">
+    <p class="sub">Agenda comercial</p>
+    <div class="cartao">
+      <h2>App bloqueado</h2>
+      <div class="lg-email" id="bioNome"></div>
+      <div class="dica">Use a digital, o rosto ou a senha do celular para abrir.</div>
+      <button type="button" class="btn prim lg-acao" id="bioDesbloquear">Desbloquear</button>
+      <div class="lg-links"><button type="button" class="link" id="bioUsarPin">Entrar com PIN</button></div>
+      <div class="erro" id="bioErro" hidden></div>
+    </div>
+  </div>
+</div>
 <!-- ===================== ENTRADA ===================== -->
 <div class="entrada" id="entrada" hidden>
   <div class="entrada-in">
@@ -778,17 +810,18 @@
         <div class="erro" id="vSentErro" hidden></div>
 
         <div id="vPerguntasOb"></div>
-        <label for="vResumo">2. O que aconteceu? <small style="font-weight:400;color:#8A9AB0">toque nas frases ou fale pelo 🎤 do teclado</small></label>
-        <div class="frases" id="vFrases"></div>
-        <textarea id="vResumo" rows="2" placeholder="Ex.: Apresentei a campanha; vão divulgar para os clientes"></textarea>
 
-        <label>3. Próximo contato</label>
+
+        <label>2. Próximo contato</label>
         <div class="chips-prox" id="vProxChips"></div>
         <div class="dica" id="vProxDica"></div>
         <div class="erro" id="vProxErro" hidden></div>
 
         <details class="mais-det" id="vMais">
-          <summary>Mais detalhes <small>combinado, perguntas, fotos e observações</small></summary>
+          <summary>Mais detalhes <small>o que aconteceu, combinado, fotos e observações</small></summary>
+        <label for="vResumo">O que aconteceu? <small style="font-weight:400;color:#8A9AB0">toque nas frases ou fale pelo 🎤 do teclado</small></label>
+        <div class="frases" id="vFrases"></div>
+        <textarea id="vResumo" rows="2" placeholder="Ex.: Apresentei a campanha; vão divulgar para os clientes"></textarea>
           <label for="vPassos">O que ficou combinado</label>
           <textarea id="vPassos" rows="2" placeholder="Vira a descrição do follow-up"></textarea>
           <div class="linha">
@@ -898,8 +931,9 @@
         <button type="button" class="btn prim" id="btnNovaAgencia">+ Nova agência</button>
       </div>
       <div data-dica-slot="agencias"></div>
+      <div class="sync-bar" data-sync-bar hidden></div>
       <div class="msg" id="aMsg" hidden></div>
-      <input id="buscaAgencia" type="search" placeholder="Buscar por nome, cidade, contato ou CNPJ" style="margin:4px 0 6px">
+      <input id="buscaAgencia" type="search" placeholder="Buscar por nome, cidade, contato, CNPJ ou código" style="margin:4px 0 6px">
       <div class="filtros-ag" id="filtrosAg">
         <div><label for="agOrdem">Ordenar por</label><select id="agOrdem"><option value="nome">Nome (A–Z)</option><option value="semVisita">Mais tempo sem visita</option><option value="saude">Pior saúde primeiro</option><option value="recente">Visita mais recente</option><option value="cidade">Cidade</option></select></div>
         <div><label for="agStatus">Mostrar</label><select id="agStatus"><option value="">Todas</option><option value="Ativo">Ativas</option><option value="Prospect">Prospects</option><option value="Inativo">Inativas</option><option value="freq">Fora da frequência</option><option value="risco">🔴 Em risco</option><option value="atencao">🟡 Atenção</option><option value="sem30">Sem visita há 30+ dias</option><option value="sem60">Sem visita há 60+ dias</option></select></div>
@@ -913,6 +947,7 @@
 
     <form class="bloco" id="formAgencia" novalidate hidden>
       <h2 id="aTitulo">Nova agência</h2>
+      <div class="dica1" id="aBaseDica" hidden><span>💡 Antes de cadastrar, procure na base da Visual: a maioria das agências já está lá, com código CVC e endereço.</span><button type="button" id="aBaseBuscar">Procurar</button></div>
 
       <label for="aNome">Nome da agência <span class="ob">*</span></label>
       <input id="aNome" autocomplete="off">
@@ -926,6 +961,7 @@
         <div>
           <label for="aStatus">Status</label>
           <select id="aStatus"><option>Prospect</option><option>Ativo</option><option>Inativo</option></select>
+          <div style="display:flex;gap:18px;margin:8px 0 2px"><label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="aCompra"> Compra</label><label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="aContrato"> Contrato</label></div>
         </div>
       </div>
       <div class="dica">O CNPJ é opcional, mas evita cadastrar a mesma agência duas vezes.</div>
@@ -1085,6 +1121,12 @@
     </div>
 
     <div id="gDados" hidden>
+      <div class="bloco" id="gCarteiraBloco" hidden>
+        <h2>Carteira de agências</h2>
+        <p class="dica" style="margin:0 0 10px">As agências vêm da planilha do sistema (aba Agencias) e chegam sozinhas aos executivos. Para dar dono às agências sem executivo, use a <b>Transferência de carteira</b> abaixo, escolhendo "Sem executivo" em "De".</p>
+        <div class="sync-bar" data-sync-bar hidden></div>
+        <div id="gCarteiraResumo" class="dica" style="margin-top:8px"></div>
+      </div>
       <div class="bloco" id="gPergBloco">
         <h2>Perguntas da visita por objetivo</h2>
         <p class="dica" style="margin:0 0 10px">Aparecem para o executivo ao registrar uma visita com aquele objetivo. Vão para os executivos junto com o arquivo de agendamentos. <b>Até 2 obrigatórias por objetivo</b>, só de tocar (Sim / Não ou opções): as demais ficam recolhidas em "Mais detalhes".</p>
@@ -1164,7 +1206,7 @@
       </div>
       <div class="bloco">
         <h2>Para testar</h2>
-        <p class="dica" style="margin:0 0 8px">Cria dados de exemplo para 3 executivos (André Costa, Douglas Diniz e Luciane Marques), para ver o painel funcionando.</p>
+        <p class="dica" style="margin:0 0 8px">Cria dados de exemplo para 3 executivos (Ana Lima, Carla Nunes e Fernanda Melo), para ver o painel funcionando.</p>
         <button type="button" class="btn prim" id="gDemo" style="margin-bottom:10px;white-space:normal">🎬 Carregar demonstração completa (8 executivos, 3 meses)</button><br>
         <button type="button" class="link" id="gExemplo">Carregar dados de exemplo da equipe</button>
         <span id="gApagarExemploBox" hidden> · <button type="button" class="link" id="gApagarExemplo" style="color:#c0392b">Apagar dados de exemplo</button></span>
@@ -1240,6 +1282,17 @@
 <div class="sheet" id="instalarSheet" hidden role="dialog" aria-modal="true" aria-labelledby="instTit">
   <div class="sheet-topo"><button type="button" class="sheet-voltar" data-fechar-ov="instalarSheet">‹ Voltar</button><div class="sheet-tits"><div class="sheet-t" id="instTit">Instalar o app</div><div class="sheet-s">Ícone na tela inicial e abertura em tela cheia</div></div></div>
   <div class="sheet-corpo"><div class="bloco" id="instCorpo"></div></div>
+</div>
+<div class="sheet" id="baseSheet" hidden role="dialog" aria-modal="true" aria-labelledby="bsTit">
+  <div class="sheet-topo"><button type="button" class="sheet-voltar" data-fechar-ov="baseSheet">‹ Voltar</button><div class="sheet-tits"><div class="sheet-t" id="bsTit">🔎 Buscar na base da Visual</div><div class="sheet-s">Agências que ainda não estão na sua carteira</div></div></div>
+  <div class="sheet-corpo"><div class="bloco">
+    <label for="bsBusca" style="margin-top:0">Nome, código CVC, CNPJ ou cidade</label>
+    <input id="bsBusca" type="search" autocomplete="off" placeholder="Ex.: Georgia Viagens, 97701 ou Aquiraz">
+    <div id="bsParaBox" hidden><label for="bsPara">Trazer para a carteira de</label><select id="bsPara"></select></div>
+    <button type="button" class="btn prim" id="bsBuscar" style="width:100%;margin-top:10px">Buscar</button>
+    <div class="erro" id="bsErro" hidden></div>
+    <div id="bsRes" style="margin-top:12px"></div>
+  </div></div>
 </div>
 <div class="sheet" id="fecharSheet" hidden role="dialog" aria-modal="true" aria-labelledby="fdTit">
   <div class="sheet-topo"><button type="button" class="sheet-voltar" data-fechar-ov="fecharSheet">‹ Voltar</button><div class="sheet-tits"><div class="sheet-t" id="fdTit">✅ Fechar o dia</div><div class="sheet-s" id="fdSub">Registre as visitas em sequência</div></div></div>
@@ -1386,6 +1439,74 @@
   <div class="sheet-corpo"><div class="ro-aviso">Somente leitura · toque em um item para ver tudo o que foi lançado</div><div id="gDetLista"></div></div>
 </div>
 <script>
+/* ---------- Servidor (Apps Script): endereço do App da Web (termina em /exec). Vazio = modo local de teste. ---------- */
+window.AGENDA_URL_API = "https://script.google.com/macros/s/AKfycbycxk6sJ_IU7cXdMBMxSrWpYZsqWkhaneCqulvcFNwCe9QVTgvtcbIpkzON5mx4EIrCaA/exec";
+/* ---------- Cofre: dados guardados no aparelho ficam cifrados (AES-GCM 256) ----------
+   Cada pessoa tem uma chave própria, que vem do servidor no login e fica guardada no aparelho
+   como chave "não exportável" (o navegador usa, mas não deixa ler nem copiar).
+   Ficam cifrados: agências, visitas, follow-ups e notificações; ponto de partida; fotos e anexos;
+   arquivos de backup e de agendamentos. No modo teste (dados de exemplo) nada disso é usado. */
+window.COFRE = (function () {
+  "use strict";
+  const DB = "agenda-v1-cofre", ST = "itens", enc = new TextEncoder(), dec = new TextDecoder();
+  let db = null, chave = null, email = "", ativo = false;
+  const cache = {}, fila = {};
+  const abrirDb = () => db ? Promise.resolve(db) : new Promise((ok, f) => { const r = indexedDB.open(DB, 1); r.onupgradeneeded = () => r.result.createObjectStore(ST); r.onsuccess = () => { db = r.result; ok(db); }; r.onerror = () => f(r.error); });
+  const op = (modo, fn) => abrirDb().then((d) => new Promise((ok, f) => { const tx = d.transaction(ST, modo), st = tx.objectStore(ST); let res; const r = fn(st); if (r) r.onsuccess = () => { res = r.result; }; tx.oncomplete = () => ok(res); tx.onerror = () => f(tx.error); tx.onabort = () => f(tx.error); }));
+  const deB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const paraB64 = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const importar = (b64) => crypto.subtle.importKey("raw", deB64(b64), "AES-GCM", false, ["encrypt", "decrypt"]);
+  async function cifrarCom(k, u8) { const iv = crypto.getRandomValues(new Uint8Array(12)); return { iv, ct: new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, k, u8)) }; }
+  async function decifrarCom(k, o) { return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: o.iv }, k, o.ct)); }
+  const suportado = () => !!(window.crypto && crypto.subtle && window.indexedDB && window.TextEncoder);
+  async function preparar() {
+    let s = null; try { s = JSON.parse(localStorage.getItem("agenda-v1:sessao")); } catch (e) {}
+    if (!s || !s.token || s.demo || !s.usuario || !window.AGENDA_URL_API || !suportado()) return;
+    email = String(s.usuario.email || "").toLowerCase();
+    chave = await op("readonly", (st) => st.get("chave:" + email));
+    if (!chave) { // primeira vez neste aparelho com esta versão: pede a chave ao servidor
+      try {
+        const ctl = window.AbortController ? new AbortController() : null; const t = setTimeout(() => ctl && ctl.abort(), 8000);
+        const r = await fetch(window.AGENDA_URL_API, { method: "POST", body: JSON.stringify({ acao: "sessao", token: s.token }), signal: ctl ? ctl.signal : undefined });
+        clearTimeout(t); const j = await r.json();
+        if (j.ok && j.chave) { chave = await importar(j.chave); await op("readwrite", (st) => st.put(chave, "chave:" + email)); }
+      } catch (e) {}
+    }
+    if (!chave) return; // sem internet no primeiro uso: abre sem cifrar e cifra na próxima vez
+    ativo = true;
+    for (const nome of ["dados", "kv"]) {
+      const o = await op("readonly", (st) => st.get(nome + ":" + email));
+      if (o) { try { cache[nome] = JSON.parse(dec.decode(await decifrarCom(chave, o))); } catch (e) { console.warn("Cofre: não foi possível abrir " + nome); } }
+    }
+  }
+  // grava em segundo plano; se pedirem várias vezes seguidas, grava só a última
+  function gravar(nome, texto) {
+    if (!ativo) return Promise.resolve(false);
+    const f = fila[nome] || (fila[nome] = { prox: null, rodando: null });
+    f.prox = texto;
+    if (!f.rodando) f.rodando = (async () => {
+      while (f.prox !== null) { const t = f.prox; f.prox = null; const c = await cifrarCom(chave, enc.encode(t)); await op("readwrite", (st) => st.put(c, nome + ":" + email)); }
+    })().catch((e) => console.warn("Cofre: falha ao gravar", e)).then(() => { f.rodando = null; return true; });
+    return f.rodando;
+  }
+  return {
+    preparar, gravar,
+    get ativo() { return ativo; },
+    get email() { return email; },
+    dados() { return cache.dados || null; },
+    kvGet(k) { return (cache.kv || {})[k]; },
+    kvSet(k, v) { const kv = Object.assign({}, cache.kv || {}); if (v === undefined || v === null) delete kv[k]; else kv[k] = v; cache.kv = kv; return gravar("kv", JSON.stringify(kv)); },
+    async guardarChave(em, b64) { if (!b64 || !suportado()) return; const k = await importar(b64); await op("readwrite", (st) => st.put(k, "chave:" + String(em).toLowerCase())); },
+    async cifrarBytes(u8) { return cifrarCom(chave, u8); },
+    async decifrarBytes(o) { return decifrarCom(chave, o); },
+    // arquivo de backup/agendamentos: cifrado com a chave do dono (ou de quem vai receber)
+    async empacotar(texto, chaveB64, dono) { const k = chaveB64 ? await importar(chaveB64) : chave; const c = await cifrarCom(k, enc.encode(texto)); return { app: "agenda-comercial-v1", cifrado: 1, dono: String(dono || email).toLowerCase(), exportadoEm: new Date().toISOString(), iv: paraB64(c.iv), ct: paraB64(c.ct) }; },
+    async desempacotar(o, chaveB64) { const k = chaveB64 ? await importar(chaveB64) : chave; return dec.decode(await decifrarCom(k, { iv: deB64(o.iv), ct: deB64(o.ct) })); },
+    apagarTudo() { return new Promise((ok) => { try { if (db) db.close(); const r = indexedDB.deleteDatabase(DB); r.onsuccess = r.onerror = r.onblocked = () => ok(); setTimeout(ok, 1500); } catch (e) { ok(); } }); },
+  };
+})();
+</script>
+<script>
 /* Visão Celular / PC: automática pela largura da tela */
 (function () {
   const CH = "agenda-v1:modoVisao";
@@ -1403,17 +1524,18 @@
   window.addEventListener("resize", aplicar);
   document.addEventListener("DOMContentLoaded", aplicar);
 })();
-(function () {
+window.__agendaPrincipal = function () {
   "use strict";
 
   /* ---------- Fase 2: servidor (Apps Script) ----------
      Cole em URL_API o endereço do App da Web (termina em /exec).
      Vazio = modo local de teste (lista de nomes e "Entrar como gestor"). */
-  const URL_API = "https://script.google.com/macros/s/AKfycbycxk6sJ_IU7cXdMBMxSrWpYZsqWkhaneCqulvcFNwCe9QVTgvtcbIpkzON5mx4EIrCaA/exec";
+  const URL_API = window.AGENDA_URL_API || "";
   const CH_SESSAO = "agenda-v1:sessao";
   const SESSAO = (() => { if (!URL_API) return null; try { const x = JSON.parse(localStorage.getItem(CH_SESSAO)); return x && x.token && x.usuario ? x : null; } catch (e) { return null; } })();
   const PERFIL = SESSAO ? SESSAO.usuario.perfil : "";
   async function api(acao, dados) {
+    if (SESSAO && SESSAO.demo) return apiDemo(acao);
     let r;
     try { r = await fetch(URL_API, { method: "POST", body: JSON.stringify(Object.assign({ acao }, dados || {})) }); }
     catch (e) { const er = new Error("Sem conexão com o servidor. Confira a internet e tente de novo."); er.codigo = "rede"; throw er; }
@@ -1429,13 +1551,50 @@
   }
   function encerrarSessao() { try { localStorage.removeItem(CH_SESSAO); localStorage.removeItem("agenda-v1:executivo"); } catch (e) {} }
 
+  /* ---------- Digital / rosto (bloqueio local deste aparelho) ---------- */
+  const BIO = (() => {
+    const CH = "agenda-v1:bio", OK = "agenda-v1:bioOk";
+    const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const deb64 = (t) => Uint8Array.from(atob(t.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+    const rnd = (n) => crypto.getRandomValues(new Uint8Array(n));
+    const cfg = () => { try { const x = JSON.parse(localStorage.getItem(CH)); return x && x.id && x.email ? x : null; } catch (e) { return null; } };
+    const api2 = {
+      disp: false,
+      async checar() { try { api2.disp = !!(window.PublicKeyCredential && window.isSecureContext && navigator.credentials && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch (e) { api2.disp = false; } return api2.disp; },
+      ativoPara(email) { const c = cfg(); return !!c && c.email === email; },
+      liberadoNestaSessao() { try { return sessionStorage.getItem(OK) === "1"; } catch (e) { return false; } },
+      liberar() { try { sessionStorage.setItem(OK, "1"); } catch (e) {} },
+      travar() { try { sessionStorage.removeItem(OK); } catch (e) {} },
+      async ativar(email, nome) {
+        const c = await navigator.credentials.create({ publicKey: {
+          challenge: rnd(32), rp: { name: "Agenda Comercial", id: location.hostname },
+          user: { id: rnd(16), name: email, displayName: nome || email },
+          pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+          authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "discouraged" },
+          timeout: 60000, attestation: "none" } });
+        if (!c) throw new Error("cancelado");
+        localStorage.setItem(CH, JSON.stringify({ id: b64(c.rawId), email: email, em: Date.now() }));
+      },
+      async conferir() {
+        const c = cfg(); if (!c) throw new Error("sem configuração");
+        const r = await navigator.credentials.get({ publicKey: {
+          challenge: rnd(32), allowCredentials: [{ type: "public-key", id: deb64(c.id), transports: ["internal"] }],
+          userVerification: "required", timeout: 60000 } });
+        if (!r) throw new Error("cancelado");
+        return true;
+      },
+      desativar() { try { localStorage.removeItem(CH); } catch (e) {} api2.liberar(); },
+    };
+    return api2;
+  })();
+
   /* ---------- Listas (iguais às da agenda atual) ---------- */
   const EXECUTIVOS_LOCAIS = [
-    { id: "exec-1", nome: "André Costa" }, { id: "exec-2", nome: "Fabíola Cerqueira" },
-    { id: "exec-3", nome: "Douglas Diniz" }, { id: "exec-4", nome: "Eduardo Oliveira" },
-    { id: "exec-5", nome: "Hélio" }, { id: "exec-6", nome: "Luciane Marques" },
-    { id: "exec-7", nome: "André Matos" }, { id: "exec-8", nome: "Danillo Sacramento" },
-    { id: "exec-9", nome: "Adriano Pacheco" }, { id: "exec-10", nome: "Adeila" },
+    { id: "exec-1", nome: "Ana Lima" }, { id: "exec-2", nome: "Bruno Reis" },
+    { id: "exec-3", nome: "Carla Nunes" }, { id: "exec-4", nome: "Diego Prado" },
+    { id: "exec-5", nome: "Elisa Rocha" }, { id: "exec-6", nome: "Fernanda Melo" },
+    { id: "exec-7", nome: "Gustavo Pires" }, { id: "exec-8", nome: "Helena Dias" },
+    { id: "exec-9", nome: "Igor Torres" }, { id: "exec-10", nome: "Júlia Vidal" },
   ];
   // Com o servidor ligado, a lista vem do login: executivo vê só ele; gestor, a equipe dele; ADM, todos
   const EXECUTIVOS = URL_API ? (SESSAO ? SESSAO.equipe.filter((e) => e.ativo !== false).map((e) => ({ id: e.id, nome: e.nome, email: e.email })) : []) : EXECUTIVOS_LOCAIS;
@@ -1445,14 +1604,76 @@
   const POTENCIAIS = ["Alto", "Médio", "Baixo"];
 
   /* ---------- Dados (salvos neste navegador) ---------- */
-  const CHAVE = "agenda-v1:dados";
+  const CHAVE = SESSAO && SESSAO.demo ? "agenda-v1:demo-dados" : "agenda-v1:dados";
   const CHAVE_EXEC = "agenda-v1:executivo";
+  /* Compressão do que fica guardado no aparelho: a carteira inteira do gestor passa de 2 milhões de
+     caracteres, perto do limite do Safari. Acima de 300 mil caracteres os dados são gravados comprimidos. */
+  // LZW sobre bytes UTF-8; cada código (0..32767) vira um caractere (código + 32): nunca cai na faixa de surrogates.
+  const LZW = {
+    comprimir(str) {
+      const b = new TextEncoder().encode(str); if (!b.length) return "";
+      let dict = new Map(), next = 256, w = b[0];
+      const out = []; let buf = new Uint16Array(65536), n = 0;
+      const emit = (c) => { buf[n++] = c + 32; if (n === buf.length) { out.push(String.fromCharCode.apply(null, buf)); n = 0; } };
+      for (let i = 1; i < b.length; i++) {
+        const c = b[i], k = w * 256 + c, v = dict.get(k);
+        if (v !== undefined) { w = v; continue; }
+        emit(w); dict.set(k, next++);
+        if (next === 32768) { dict = new Map(); next = 256; }
+        w = c;
+      }
+      emit(w);
+      out.push(String.fromCharCode.apply(null, buf.subarray(0, n)));
+      return out.join("");
+    },
+    descomprimir(s) {
+      if (!s) return "";
+      const pre = new Int32Array(32768), ch = new Uint8Array(32768), len = new Int32Array(32768);
+      for (let i = 0; i < 256; i++) { pre[i] = -1; ch[i] = i; len[i] = 1; }
+      let out = new Uint8Array(Math.max(1024, s.length * 4)), n = 0, next = 256, prev = -1;
+      const garantir = (k) => { if (n + k > out.length) { const o2 = new Uint8Array(Math.max(out.length * 2, n + k)); o2.set(out.subarray(0, n)); out = o2; } };
+      const escrever = (code) => { const L = len[code]; garantir(L); let p = n + L - 1, c = code; while (c >= 0) { out[p--] = ch[c]; c = pre[c]; } n += L; };
+      const primeiro = (code) => { let c = code; while (pre[c] >= 0) c = pre[c]; return ch[c]; };
+      for (let i = 0; i < s.length; i++) {
+        const code = s.charCodeAt(i) - 32;
+        if (prev < 0) { escrever(code); prev = code; continue; }
+        let f;
+        if (code < next) { f = primeiro(code); }
+        else if (code === next) { f = primeiro(prev); }
+        else throw new Error("dados corrompidos");
+        pre[next] = prev; ch[next] = f; len[next] = len[prev] + 1;
+        escrever(code); // se code === next, a entrada acabou de ser criada
+        next++;
+        if (next === 32768) next = 256;
+        prev = code;
+      }
+      return new TextDecoder().decode(out.subarray(0, n));
+    },
+  };
+  const PREFIXO_LZ = "LZW1:";
+  function serializarDados(o) { const t = JSON.stringify(o); return t.length > 300000 ? PREFIXO_LZ + LZW.comprimir(t) : t; }
+  function guardarCopiaAntesImportar() {
+    if (window.COFRE && COFRE.ativo) { COFRE.gravar("copia", JSON.stringify(dados)); return; }
+    try { localStorage.setItem("agenda-v1:copiaAntesImportar", serializarDados(dados)); } catch (e) {}
+  }
+  function lerGuardado(chave) { const t = localStorage.getItem(chave); if (!t) return null; return JSON.parse(t.startsWith(PREFIXO_LZ) ? LZW.descomprimir(t.slice(PREFIXO_LZ.length)) : t); }
+  var migrarParaCofre = false;
   function ler() {
-    try { const d = JSON.parse(localStorage.getItem(CHAVE)); if (d && d.agencias && d.visitas) { d.followups = d.followups || []; d.notificacoes = d.notificacoes || []; d.lixeira = d.lixeira || { agencias: [], visitas: [], followups: [] }; return d; } } catch (e) {}
+    if (window.COFRE && COFRE.ativo) {
+      const c = COFRE.dados();
+      if (c && c.agencias && c.visitas) { c.followups = c.followups || []; c.notificacoes = c.notificacoes || []; c.lixeira = c.lixeira || { agencias: [], visitas: [], followups: [] }; return c; }
+      migrarParaCofre = true; // primeira vez com o cofre: o que estava em texto aberto passa para o cofre na próxima gravação
+    }
+    try { const d = lerGuardado(CHAVE); if (d && d.agencias && d.visitas) { d.followups = d.followups || []; d.notificacoes = d.notificacoes || []; d.lixeira = d.lixeira || { agencias: [], visitas: [], followups: [] }; return d; } } catch (e) {}
     return { agencias: [], visitas: [], followups: [], notificacoes: [], lixeira: { agencias: [], visitas: [], followups: [] } };
   }
   function gravar() {
-    try { localStorage.setItem(CHAVE, JSON.stringify(dados)); return true; }
+    if (window.COFRE && COFRE.ativo) {
+      COFRE.gravar("dados", JSON.stringify(dados));
+      if (migrarParaCofre) { migrarParaCofre = false; try { localStorage.removeItem(CHAVE); localStorage.removeItem("agenda-v1:copiaAntesImportar"); } catch (e) {} }
+      agendarSyncAg(); return true;
+    }
+    try { localStorage.setItem(CHAVE, serializarDados(dados)); agendarSyncAg(); return true; }
     catch (e) { alert("Não foi possível salvar neste navegador."); return false; }
   }
   let dados = ler();
@@ -1702,9 +1923,18 @@
   }
   function textoConflito(lista, data) {
     const nomeAg = (v) => { const a = dados.agencias.find((x) => x.id === v.clienteId); return a ? a.nome : "Agência"; };
-    return `<b>Atenção: conflito de horário.</b> Você já tem ${lista.length === 1 ? "uma visita" : lista.length + " visitas"} perto desse horário em ${fData(data)}:<ul>${lista.map((v) => `<li>${esc(v.horario)} — ${esc(nomeAg(v))}</li>`).join("")}</ul>O agendamento não é bloqueado. Se estiver certo, toque de novo no botão para confirmar.`;
+    return `<b>Atenção: conflito de horário.</b> Você já tem ${lista.length === 1 ? "uma visita" : lista.length + " visitas"} perto desse horário em ${fData(data)}:<ul>${lista.map((v) => `<li>${esc(v.horario)} — ${esc(nomeAg(v))}</li>`).join("")}</ul>O agendamento não é bloqueado.<div class="conf-acoes" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn prim" data-conf="ok">Agendar mesmo assim</button><button type="button" class="btn" data-conf="trocar">Trocar horário</button></div>`;
   }
   let confirmaConflito = false;
+  $("vConflito").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-conf]"); if (!b) return;
+    if (b.dataset.conf === "trocar") { $("vHora").focus(); try { $("vHora").showPicker(); } catch (x) {} return; }
+    confirmaConflito = true; $("formVisita").requestSubmit(); // confirma e segue o fluxo normal (mostra o que faltar)
+  });
+  // Rola até o primeiro erro, para o aviso não ficar fora da tela
+  function rolarParaErro() {
+    const el = document.querySelector("#formVisita .erro:not([hidden])"); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
   function checarConflitoForm() {
     confirmaConflito = false;
     const lista = modo === "agendar" ? conflitos($("vData").value, $("vHora").value, null) : [];
@@ -1772,9 +2002,16 @@
     mostrar("vErro", ""); mostrar("vSentErro", ""); mostrar("vProxErro", "");
     checarConflitoForm();
   }
-  $("modoRealizada").addEventListener("click", () => definirModo("realizada"));
-  $("modoAgendar").addEventListener("click", () => { if (editandoVisitaId) return; definirModo("agendar"); });
+  $("modoRealizada").addEventListener("click", () => { definirModo("realizada"); if (!editandoVisitaId) baseResumida(); });
+  $("modoAgendar").addEventListener("click", () => { if (editandoVisitaId) return; definirModo("agendar"); $("vBase").hidden = false; $("vBaseResumo").hidden = true; });
 
+  // Registro em 2 passos: o passo 1 mostra só agência, como foi e próximo contato; data, tipo e objetivo ficam resumidos ("alterar")
+  function tagsCC(a) { return (a.compra ? ' <span class="tag ativo">Compra</span>' : "") + (a.contrato ? ' <span class="tag ativo">Contrato</span>' : ""); }
+  function baseResumida() {
+    const a = new Date(); $("vHora").value = String(a.getHours()).padStart(2, "0") + ":" + String(a.getMinutes()).padStart(2, "0");
+    $("vBase").hidden = true; $("vBaseResumo").hidden = false;
+    $("vBaseTxt").textContent = "Hoje, agora (" + $("vHora").value + ") · " + $("vTipo").value + " · " + $("vObjetivo").value;
+  }
   function limparFormVisita() {
     editandoVisitaId = null;
     $("vEditando").hidden = true;
@@ -1787,6 +2024,7 @@
     $("vTipo").value = TIPOS[0]; $("vObjetivo").value = OBJETIVOS[0];
     $("vData").value = hojeISO(); $("vHora").value = "09:00";
     definirModo(modo);
+    if (modo === "realizada") baseResumida();
   }
   $("vCancelarEdicao").addEventListener("click", () => { limparFormVisita(); definirModo("realizada"); atualizarTudo(); });
 
@@ -1919,12 +2157,13 @@
     const proxData = modo === "realizada" ? $("vProxData").value : "";
     mostrar("vProxErro", "");
     if (proxData && proxData < agora.data) { mostrar("vProxErro", "A data do próximo contato precisa ser hoje ou depois."); ok = false; }
-    if (!ok) return;
+    if (!ok) { rolarParaErro(); return; }
     if (modo === "agendar") {
       const cf = conflitos(data, hora, null);
       if (cf.length && !confirmaConflito) {
         $("vConflito").innerHTML = textoConflito(cf, data); $("vConflito").hidden = false;
         confirmaConflito = true; $("vSalvar").textContent = "Agendar mesmo assim"; $("vSalvar").classList.add("aviso");
+        $("vConflito").scrollIntoView({ block: "center", behavior: "smooth" });
         return;
       }
     }
@@ -1987,7 +2226,7 @@
 
   /* Localização exata (coordenadas) da agência */
   let locForm = null; // { lat, lng, fonte }
-  const FONTES_LOC = { gps: "pelo GPS, na agência", endereco: "pelo endereço", manual: "colada manualmente", exemplo: "de exemplo" };
+  const FONTES_LOC = { gps: "pelo GPS, na agência", endereco: "pelo endereço", manual: "colada manualmente", exemplo: "de exemplo", google: "pelo endereço (Google)" };
   const temLoc = (a) => a && typeof a.lat === "number" && typeof a.lng === "number";
   function mostrarLocForm() {
     $("aLocStatus").innerHTML = locForm ? `📍 <b>Localização salva</b> (${FONTES_LOC[locForm.fonte] || ""})<br><small>${locForm.lat.toFixed(5)}, ${locForm.lng.toFixed(5)} · <a class="link" style="font-size:13px" href="https://www.google.com/maps/search/?api=1&query=${locForm.lat},${locForm.lng}" target="_blank" rel="noopener">conferir no mapa</a></small>` : `<span style="color:#7a4b00">Sem localização exata.</span>`;
@@ -2064,6 +2303,7 @@
     concForm = agencia && agencia.concorrentes ? agencia.concorrentes.slice() : []; renderConcChips();
     $("aCepSt").textContent = "Digite o CEP para preencher o endereço"; $("aCepSt").className = "cep-st"; $("aCep").dataset.bairro = (agencia && agencia.bairro) || ""; mostrar("aNumErro", "");
     $("aTitulo").textContent = agencia ? `Editar ${agencia.nome}` : "Nova agência";
+    $("aBaseDica").hidden = !agSyncAtivo() || !!agencia;
     $("aSalvar").textContent = agencia ? "Salvar alterações" : "Cadastrar agência";
     $("aSegmento").value = (agencia && agencia.segmento) || SEGMENTOS[0];
     $("aPotencial").value = (agencia && agencia.potencial) || "Médio";
@@ -2078,7 +2318,7 @@
     }
     locForm = temLoc(agencia) ? { lat: agencia.lat, lng: agencia.lng, fonte: agencia.locFonte } : null;
     $("aLocCola").value = ""; mostrarLocForm();
-    $("aStatus").value = (agencia && agencia.status) || "Prospect";
+    $("aStatus").value = (agencia && agencia.status) || "Prospect"; $("aCompra").checked = !!(agencia && agencia.compra); $("aContrato").checked = !!(agencia && agencia.contrato);
     mostrar("aErro", ""); mostrar("aNomeErro", ""); mostrar("aCnpjErro", ""); mostrar("aMsg", "");
     $("blocoLista").hidden = true;
     $("blocoHistorico").hidden = true;
@@ -2142,7 +2382,7 @@
       endereco: enderecoForm(), contato: $("aContato").value.trim(),
       cargo: $("aCargo").value.trim(), observacoes: $("aObs").value.trim(), concorrentes: concForm.slice(), participacao: $("aPart").value,
       telefone: $("aTelefone").value.trim(), email,
-      cnpj: cnpjDig.length === 14 ? fCnpj(cnpjDig) : "", whatsapp: whats, status: $("aStatus").value,
+      cnpj: cnpjDig.length === 14 ? fCnpj(cnpjDig) : "", whatsapp: whats, status: ($("aCompra").checked || $("aContrato").checked) && $("aStatus").value === "Prospect" ? "Ativo" : $("aStatus").value, compra: $("aCompra").checked, contrato: $("aContrato").checked,
       lat: locForm ? locForm.lat : null, lng: locForm ? locForm.lng : null, locFonte: locForm ? locForm.fonte : null,
     };
     // se o endereço mudou e a localização veio do endereço antigo, ela é refeita
@@ -2206,7 +2446,7 @@
 
     $("blocoHistorico").innerHTML = `
       <div class="topo-lista"><button type="button" class="btn" data-h="voltar">← Voltar</button><button type="button" class="btn" data-h="editar">Editar</button></div>
-      <h2 style="margin-top:12px">${esc(a.nome)} <span class="tag ${st}">${esc(a.status || "Prospect")}</span></h2>
+      <h2 style="margin-top:12px">${esc(a.nome)} <span class="tag ${st}">${esc(a.status || "Prospect")}</span>${tagsCC(a)}</h2>
       ${a.status !== "Inativo" ? (() => { const sd = saudeAgencia(a), fq = freqAgencia(a); return `<div class="saude-box" style="background:${SAUDE[sd.faixa].bg};color:${SAUDE[sd.faixa].cor}"><b>${SAUDE[sd.faixa].ic} Saúde da conta: ${SAUDE[sd.faixa].t} (${sd.n}/100)</b><br><small>${sd.motivos.length ? esc(sd.motivos.join(" · ")) : "Tudo em dia."}</small><br><small>Classe ${classeDe(a)}: visitar a cada ${fq.cad} dias${fq.dias != null ? ` · última visita há ${fq.dias} dia(s)` : ""}</small></div>`; })() : ""}
       <div class="dados-ag">
         ${a.cnpj ? `<span>CNPJ:</span> ${esc(a.cnpj)}<br>` : ""}
@@ -2399,8 +2639,8 @@
     $("ultimoBackup").textContent = (u ? `Último backup exportado neste aparelho: ${new Date(u).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.` : "Nenhum backup exportado ainda neste aparelho.") + (sb && sb.alteracoes ? ` ${sb.alteracoes} alteração(ões) depois dele.` : sb && u ? " Tudo salvo no backup." : "");
     if (typeof renderAvisoBackup === "function" && $("iniBackup")) renderAvisoBackup();
   }
-  $("btnExportar").addEventListener("click", () => {
-    const conteudo = JSON.stringify({ app: "agenda-comercial-v1", exportadoEm: new Date().toISOString(), ...dados }, null, 2);
+  $("btnExportar").addEventListener("click", async () => {
+    let conteudo; try { conteudo = await textoDoArquivo({ app: "agenda-comercial-v1", exportadoEm: new Date().toISOString(), ...dados }); } catch (e) { mostrar("bErro", e.message); return; }
     const blob = new Blob([conteudo], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = nomeArqBackup();
@@ -2413,7 +2653,7 @@
   // Enviar ao gestor: abre o compartilhar do celular (WhatsApp, e-mail…) com o arquivo pronto. Sem suporte, baixa o arquivo.
   $("btnEnviarGestor").addEventListener("click", async () => {
     const nome = nomeExec(execAtual());
-    const conteudo = JSON.stringify({ app: "agenda-comercial-v1", exportadoEm: new Date().toISOString(), ...dados }, null, 2);
+    let conteudo; try { conteudo = await textoDoArquivo({ app: "agenda-comercial-v1", exportadoEm: new Date().toISOString(), ...dados }); } catch (e) { mostrar("bErro", e.message); return; }
     let arq = null; try { arq = new File([conteudo], nomeArqBackup(), { type: "application/json" }); } catch (e) {}
     if (arq && navigator.canShare && navigator.canShare({ files: [arq] })) {
       try {
@@ -2427,6 +2667,31 @@
     aviso("bMsg", "Este navegador não abre o compartilhar com arquivo, então o backup foi salvo no aparelho. Envie esse arquivo ao gestor pelo WhatsApp ou e-mail.");
   });
   $("btnImportar").addEventListener("click", () => { mostrar("bErro", ""); $("arqBackup").click(); });
+  /* ---------- Arquivos cifrados: backup, base consolidada e agendamentos ----------
+     Com o cofre ativo, o arquivo leva os dados cifrados com a chave do dono (ou de quem vai receber).
+     Só abre no app de quem tem a chave: o próprio, o gestor dele ou um ADM. */
+  var chavesEquipeCache = null;
+  async function chaveDaPessoa(email) {
+    email = String(email || "").toLowerCase();
+    if (email === COFRE.email) return null; // a própria chave já está no aparelho
+    if (!chavesEquipeCache || !(email in chavesEquipeCache)) {
+      if (navigator.onLine === false) throw new Error("Precisa de internet para abrir ou preparar arquivos de outra pessoa.");
+      const j = await api("chavesEquipe", { token: SESSAO.token }); chavesEquipeCache = j.chaves || {};
+    }
+    if (!chavesEquipeCache[email]) throw new Error("Este arquivo é de alguém fora da sua equipe.");
+    return chavesEquipeCache[email];
+  }
+  async function textoDoArquivo(obj, paraEmail) {
+    if (!(window.COFRE && COFRE.ativo)) return JSON.stringify(obj, null, 2);
+    const dono = String(paraEmail || COFRE.email).toLowerCase();
+    return JSON.stringify(await COFRE.empacotar(JSON.stringify(obj), await chaveDaPessoa(dono), dono));
+  }
+  async function abrirArquivo(o) {
+    if (!o || !o.cifrado) return o;
+    if (!(window.COFRE && COFRE.ativo)) throw new Error("Este arquivo é cifrado. Entre no app com o seu login para abri-lo.");
+    const k = await chaveDaPessoa(o.dono);
+    try { return JSON.parse(await COFRE.desempacotar(o, k)); } catch (e) { throw new Error("Não foi possível abrir o arquivo cifrado: ele não é seu nem da sua equipe."); }
+  }
   // Mescla por id: o registro mais recente vence. Nada é apagado.
   function mesclarBackup(o) {
     const carimbo = (x) => [x.atualizadoEm, x.registradaEm, x.canceladaEm, x.concluidoEm, x.criadoEm].filter(Boolean).sort().pop() || "";
@@ -2469,13 +2734,14 @@
   $("arqBackup").addEventListener("change", () => {
     const f = $("arqBackup").files[0]; if (!f) return;
     const r = new FileReader();
-    r.onload = () => {
+    r.onload = async () => {
       let o;
       try { o = JSON.parse(r.result); } catch (e) { mostrar("bErro", "Esse arquivo não é um backup válido da agenda."); return; }
+      try { o = await abrirArquivo(o); } catch (e) { mostrar("bErro", e.message); return; }
       if (!o || !Array.isArray(o.agencias) || !Array.isArray(o.visitas)) { mostrar("bErro", "Esse arquivo não é um backup válido da agenda."); return; }
       const pacote = o.tipo === "pacote-gestor";
       if (!confirm(pacote ? `Receber ${o.visitas.length} agendamento(s) feito(s) pelo gestor?` : `Importar backup com ${o.agencias.length} agências e ${o.visitas.length} visitas? Os dados serão somados aos atuais; nada é apagado.`)) return;
-      try { localStorage.setItem("agenda-v1:copiaAntesImportar", JSON.stringify(dados)); } catch (e) {}
+      guardarCopiaAntesImportar();
       const { novos, atualizados } = mesclarBackup(o);
       importarAnexos(o).then((n) => { if (n) avisoFlutuante(`${n} foto(s)/anexo(s) importado(s).`); });
       if (!gravar()) return;
@@ -2908,14 +3174,16 @@
   const cadenciaDe = (a) => cadencias()[classeDe(a)];
   function freqAgencia(a) {
     const s = situacaoAgencia(a), cad = cadenciaDe(a), d = s.ult ? diasDesde(s.ult) : null;
-    return { ...s, cad, dias: d, fora: a.status === "Ativo" && !s.prox && (d === null || d > cad), atraso: d === null ? null : d - cad };
+    // nunca visitada: o prazo da classe conta a partir da entrada na carteira (carência para quem acabou de chegar)
+    const entrada = d === null && a.criadoEm ? diasDesde(String(a.criadoEm).slice(0, 10)) : null;
+    return { ...s, cad, dias: d, desdeEntrada: entrada, fora: a.status === "Ativo" && !s.prox && (d === null ? entrada === null || entrada > cad : d > cad), atraso: d === null ? null : d - cad };
   }
   const SAUDE = { verde: { ic: "🟢", t: "Saudável", cor: "#17794a", bg: "#E2F3EA" }, amarelo: { ic: "🟡", t: "Atenção", cor: "#8a5300", bg: "#FFF1D6" }, vermelho: { ic: "🔴", t: "Em risco", cor: "#a8261d", bg: "#FBE4E1" } };
   function saudeAgencia(a) {
     if (!a || a.status === "Inativo") return null;
     const hoje = hojeISO(), f = freqAgencia(a), motivos = [];
     let n = 100;
-    if (f.dias === null) { n -= a.status === "Prospect" ? 20 : 35; motivos.push("nunca visitada"); }
+    if (f.dias === null) { if (f.desdeEntrada === null || f.desdeEntrada > f.cad) { n -= a.status === "Prospect" ? 20 : 35; motivos.push("nunca visitada"); } }
     else { const r = f.dias / f.cad; if (r > 2) { n -= 35; motivos.push(`${f.dias} dias sem visita (frequência: ${f.cad})`); } else if (r > 1.5) { n -= 25; motivos.push(`${f.dias} dias sem visita (frequência: ${f.cad})`); } else if (r > 1) { n -= 15; motivos.push("passou da frequência de visita"); } }
     const real = dados.visitas.filter((v) => v.clienteId === a.id && v.status === "Realizada" && v.sentimento).sort((x, y) => y.data.localeCompare(x.data)).slice(0, 3);
     if (real.length) { const m = real.reduce((t, v) => t + v.sentimento, 0) / real.length; if (m < 2) { n -= 30; motivos.push("sentimento muito ruim nas últimas visitas"); } else if (m < 3) { n -= 20; motivos.push("sentimento ruim nas últimas visitas"); } else if (m < 3.6) { n -= 8; motivos.push("sentimento neutro nas últimas visitas"); } }
@@ -2952,7 +3220,7 @@
     $("gSVSub").textContent = `${lista.length} de ${total} agência(s) da carteira${f.ex === "todos" ? "" : ` · ${nomeExec(f.ex)}`}`;
     $("gSVLista").innerHTML = lista.length ? `<table class="tab-sv"><thead><tr><th>ID</th><th>Agência</th><th>Executivo</th><th>Última visita</th><th>Próxima visita</th><th></th></tr></thead><tbody>` + lista.map((x) => `<tr data-ver-ag="${x.a.id}">
         <td class="id" data-l="ID"><span>${esc(x.a.id)}</span></td>
-        <td class="ag-nome" data-l="Agência">${esc(x.a.nome)} <span class="tag ${(x.a.status || "Prospect").toLowerCase()}">${esc(x.a.status || "Prospect")}</span>${x.a.cidade ? `<br><small style="font-weight:400;color:#566B82">${esc(x.a.cidade)}${x.a.estado ? "/" + esc(x.a.estado) : ""}</small>` : ""}</td>
+        <td class="ag-nome" data-l="Agência">${esc(x.a.nome)} <span class="tag ${(x.a.status || "Prospect").toLowerCase()}">${esc(x.a.status || "Prospect")}</span>${tagsCC(x.a)}${x.a.cidade ? `<br><small style="font-weight:400;color:#566B82">${esc(x.a.cidade)}${x.a.estado ? "/" + esc(x.a.estado) : ""}</small>` : ""}</td>
         <td data-l="Executivo"><span>${esc(nomeExec(x.a.executivoId))}</span></td>
         <td data-l="Última visita"><span>${x.ult ? `${fData(x.ult)} <span class="dias">${x.d} dias</span>` : `<span class="dias nunca">Nunca visitada</span>`}</span></td>
         <td data-l="Próxima visita"><span>${x.prox ? `${fData(x.prox.data)} às ${esc(x.prox.horario)}` : `<span style="color:#a15c00">Nenhuma agendada</span>`}</span></td>
@@ -3301,11 +3569,11 @@
   $("gImportar").addEventListener("click", () => { mostrar("gErro", ""); $("gArq").click(); });
   $("gArq").addEventListener("change", async () => {
     const arqs = [...$("gArq").files]; if (!arqs.length) return;
-    try { localStorage.setItem("agenda-v1:copiaAntesImportar", JSON.stringify(dados)); } catch (e) {}
+    guardarCopiaAntesImportar();
     let novos = 0, atualizados = 0, ok = 0; const ruins = [];
     for (const f of arqs) {
       try {
-        const o = JSON.parse(await f.text());
+        const o = await abrirArquivo(JSON.parse(await f.text()));
         if (!o || !Array.isArray(o.agencias) || !Array.isArray(o.visitas)) throw new Error();
         const r = mesclarBackup(o); novos += r.novos; atualizados += r.atualizados; ok++;
         importarAnexos(o);
@@ -3860,10 +4128,12 @@
     const it = (acao, ic, t, extra = "") => `<button type="button" data-menu="${acao}"><span class="mi">${ic}</span>${t}${extra}</button>`;
     $("mlItens").innerHTML = (g
       ? it("agendar", "📅", "Agendar visita para executivo") + it("semvisita", "🏢", "Agências sem visita") + it("notif", "🔔", "Notificações da última semana", nl ? `<span class="ml-n">${nl}</span>` : "") + "<hr>" + it("painel", "📊", "Painel") + it("equipe", "👥", "Equipe") + it("roteiros", "🗺️", "Roteiros") + it("dados", "🗂️", "Dados e backups")
-      : it("notif", "🔔", "Notificações da última semana", nl ? `<span class="ml-n">${nl}</span>` : "") + "<hr>" + it("inicio", "🏠", "Início") + it("agendarExec", "➕", "Agendar visita") + it("fechar", "✅", "Fechar o dia", filaFecharDia().length ? `<span class="ml-n">${filaFecharDia().length}</span>` : "") + it("planejar", "🗺️", "Montar agenda do dia") + it("partida", "📍", "Meu ponto de partida") + it("backup", "💾", "Backup dos dados") + it("lixeira", "🗑️", "Itens excluídos"))
-      + (instalado() ? "" : "<hr>" + it("instalar", "📲", "Instalar o app no celular"))
-      + (SESSAO ? "<hr>" + (g ? it("usuarios", "👥", PERFIL === "admin" ? "Usuários e estrutura" : "Minha equipe e PINs") : "") + it("pin", "🔑", "Alterar meu PIN") : "")
-      + "<hr>" + it("limpar", "🧹", "Limpar dados do aparelho") + `<button type="button" data-menu="sair" class="sair-m"><span class="mi">↩</span>Sair / trocar de usuário</button>`;
+      : it("notif", "🔔", "Notificações da última semana", nl ? `<span class="ml-n">${nl}</span>` : "") + "<hr>" + it("inicio", "🏠", "Início") + it("agendarExec", "➕", "Agendar visita") + it("fechar", "✅", "Fechar o dia", filaFecharDia().length ? `<span class="ml-n">${filaFecharDia().length}</span>` : "") + (agSyncAtivo() ? it("baseBusca", "🔎", "Buscar agência na base da Visual") : "") + it("planejar", "🗺️", "Montar agenda do dia") + it("partida", "📍", "Meu ponto de partida") + it("backup", "💾", "Backup dos dados") + it("lixeira", "🗑️", "Itens excluídos"))
+      + (agSyncAtivo() ? it("syncAg", "🔄", "Atualizar carteira de agências", `<small class="ml-sub">${esc(textoSyncCurto())}</small>`) : "")
+      + (SESSAO && g ? "<hr>" + it("usuarios", "👥", PERFIL === "admin" ? "Usuários e estrutura" : "Minha equipe e PINs") : "")
+      + '<hr><details class="ml-aj"><summary>⚙️ Ajustes</summary>' + (instalado() ? "" : it("instalar", "📲", "Instalar o app no celular"))
+      + (SESSAO && !SESSAO.demo ? it("pin", "🔑", "Alterar meu PIN") + (BIO.disp ? (BIO.ativoPara(SESSAO.usuario.email) ? it("bioLock", "🔒", "Bloquear agora") + it("bioOff", "🔐", "Desativar digital/rosto") : it("bioOn", "🔐", "Usar digital/rosto neste aparelho")) : "") : "")
+      + it("tema", "🌓", "Tema: " + temaRotulo()) + it("limpar", "🧹", "Limpar dados do aparelho") + '<div class="ml-ver">Versão 2026-11-02 · etapa 2a · cofre' + (SESSAO && SESSAO.demo ? " · MODO TESTE" : "") + '</div></details>' + `<button type="button" data-menu="sair" class="sair-m"><span class="mi">↩</span>Sair / trocar de usuário</button>`;
   }
   $("btnMenu").addEventListener("click", () => { fecharOv("popNotif"); renderMenu(); abrirOv("menuLat"); });
   $("mlItens").addEventListener("click", (e) => {
@@ -3871,6 +4141,10 @@
     const a = b.dataset.menu; fecharOv("menuLat");
     if (a === "sair") { sair(); return; }
     if (a === "pin") { abrirAlterarPin(); return; }
+    if (a === "tema") { ciclarTema(); return; }
+    if (a === "bioOn") { ativarBio(); return; }
+    if (a === "bioOff") { BIO.desativar(); avisoFlutuante("Digital/rosto desativado neste aparelho."); return; }
+    if (a === "bioLock") { BIO.travar(); mostrarBloqueio(); return; }
     if (a === "usuarios") { abrirUsuarios(); return; }
     if (a === "notif") { abrirHistNotif(); return; }
     if (a === "agendar") { abrirAgendarGestor(); return; }
@@ -3878,6 +4152,8 @@
     if (a === "lixeira") { abrirLixeira(); return; }
     if (a === "instalar") { abrirInstalar(); return; }
     if (a === "limpar") { abrirLimpar(); return; }
+    if (a === "syncAg") { sincronizarAgencias(true); return; }
+    if (a === "baseBusca") { abrirBaseSheet(""); return; }
     if (a === "fechar") { abrirFecharDia(); return; }
     if (a === "planejar") { abrirPlanejador(); return; }
     if (a === "partida") { abrirPartida(); return; }
@@ -3940,11 +4216,14 @@
     $("gAg").querySelector(".sheet-corpo").scrollTop = 0;
   });
   $("gAgOk").addEventListener("click", (e) => { if (e.target.id === "gAgOutra") abrirAgendarGestor($("gAgExec").value); });
-  function pacoteParaExec(ex) {
+  async function pacoteParaExec(ex) {
     const vis = dados.visitas.filter((v) => v.executivoId === ex && v.agendadoPor === "gestor");
     const nots = (dados.notificacoes || []).filter((n) => n.para === ex && n.de === "gestor");
     const cfg = { cadencia: (dados.config || {}).cadencia, perguntas: (dados.config || {}).perguntas, configAtualizadaEm: (dados.config || {}).configAtualizadaEm };
-    const conteudo = JSON.stringify({ app: "agenda-comercial-v1", tipo: "pacote-gestor", para: ex, exportadoEm: new Date().toISOString(), config: cfg, agencias: agsTransf(ex), followups: fusTransf(ex), visitas: [...vis, ...visTransf(ex).filter((v) => !vis.includes(v))], notificacoes: nots }, null, 2);
+    const conteudoObj = ({ app: "agenda-comercial-v1", tipo: "pacote-gestor", para: ex, exportadoEm: new Date().toISOString(), config: cfg, agencias: agsTransf(ex), followups: fusTransf(ex), visitas: [...vis, ...visTransf(ex).filter((v) => !vis.includes(v))], notificacoes: nots });
+    // cifrado com a chave do executivo que vai receber: só abre no app dele
+    const emailEx = (EXECUTIVOS.find((x) => x.id === ex) || {}).email;
+    let conteudo; try { conteudo = await textoDoArquivo(conteudoObj, emailEx); } catch (e) { alert(e.message); return; }
     const url = URL.createObjectURL(new Blob([conteudo], { type: "application/json" }));
     const a = document.createElement("a"); a.href = url;
     a.download = `agendamentos-${norm(nomeExec(ex)).replace(/[^a-z0-9]+/g, "-")}-${hojeISO()}.json`;
@@ -3962,24 +4241,25 @@
   const fusTransf = (ex) => { const ids = new Set(agsTransf(ex).map((a) => a.id)); return dados.followups.filter((f) => ids.has(f.clienteId)); };
   function preencherTransf(de) {
     const opts = EXECUTIVOS.map((e) => `<option value="${e.id}">${esc(e.nome)}</option>`).join("");
-    if (!$("gTrDe").options.length) { $("gTrDe").innerHTML = `<option value="">Escolha</option>` + opts; $("gTrPara").innerHTML = `<option value="">Escolha</option>` + opts; }
+    if (!$("gTrDe").options.length) { $("gTrDe").innerHTML = `<option value="">Escolha</option>` + (agSyncAtivo() ? `<option value="__sem__">Sem executivo</option>` : "") + opts; $("gTrPara").innerHTML = `<option value="">Escolha</option>` + opts; }
     if (de !== undefined) $("gTrDe").value = de;
     renderTransfLista();
   }
   function renderTransfLista(marcar) {
     const de = $("gTrDe").value; mostrar("gTrErro", "");
     if (!de) { $("gTrLista").innerHTML = `<p class="dica" style="margin:0">Escolha de quem sai a carteira.</p>`; return; }
-    const ags = dados.agencias.filter((a) => a.executivoId === de).sort((x, y) => x.nome.localeCompare(y.nome, "pt-BR"));
-    $("gTrLista").innerHTML = ags.length ? `<label style="display:flex;gap:8px;align-items:center;font-weight:600;margin:0 0 6px"><input type="checkbox" id="gTrTodas" style="width:auto;margin:0"> Selecionar todas (${ags.length})</label><div class="tr-lista">${ags.map((a) => `<label class="tr-it"><input type="checkbox" data-tr="${a.id}" ${marcar && marcar.includes(a.id) ? "checked" : ""} style="width:auto;margin:0"><span><b>${esc(a.nome)}</b><br><small>${esc(a.cidade || "—")} · ${esc(a.status || "Prospect")}</small></span></label>`).join("")}</div>` : `<p class="vazio">${esc(nomeExec(de))} não tem agências.</p>`;
+    const ags = dados.agencias.filter((a) => (de === "__sem__" ? a.srv && !a.executivoId : a.executivoId === de)).sort((x, y) => x.nome.localeCompare(y.nome, "pt-BR"));
+    $("gTrLista").innerHTML = ags.length ? `<label style="display:flex;gap:8px;align-items:center;font-weight:600;margin:0 0 6px"><input type="checkbox" id="gTrTodas" style="width:auto;margin:0"> Selecionar todas (${ags.length})</label><div class="tr-lista">${ags.map((a) => `<label class="tr-it"><input type="checkbox" data-tr="${a.id}" ${marcar && marcar.includes(a.id) ? "checked" : ""} style="width:auto;margin:0"><span><b>${esc(a.nome)}</b><br><small>${a.codigoCvc ? `Cód. ${esc(a.codigoCvc)} · ` : ""}${esc(a.cidade || "—")}${a.estado ? "/" + esc(a.estado) : ""} · ${esc(a.status || "Prospect")}</small></span></label>`).join("")}</div>` : `<p class="vazio">${de === "__sem__" ? "Não há agências sem executivo." : `${esc(nomeExec(de))} não tem agências.`}</p>`;
   }
   $("gTrDe").addEventListener("change", () => renderTransfLista());
   $("gTrLista").addEventListener("change", (e) => { if (e.target.id === "gTrTodas") document.querySelectorAll("#gTrLista [data-tr]").forEach((c) => { c.checked = e.target.checked; }); });
   $("gTrOk").addEventListener("click", () => {
-    const de = $("gTrDe").value, para = $("gTrPara").value, ids = [...document.querySelectorAll("#gTrLista [data-tr]:checked")].map((c) => c.dataset.tr);
-    if (!de || !para) return mostrar("gTrErro", "Escolha de quem e para quem.");
+    const deSel = $("gTrDe").value, para = $("gTrPara").value, ids = [...document.querySelectorAll("#gTrLista [data-tr]:checked")].map((c) => c.dataset.tr);
+    const de = deSel === "__sem__" ? "" : deSel, nomeDe = de ? nomeExec(de) : "sem executivo";
+    if (!deSel || !para) return mostrar("gTrErro", "Escolha de quem e para quem.");
     if (de === para) return mostrar("gTrErro", "Escolha executivos diferentes.");
     if (!ids.length) return mostrar("gTrErro", "Marque pelo menos uma agência.");
-    if (!confirm(`Transferir ${ids.length} agência(s) de ${nomeExec(de)} para ${nomeExec(para)}?`)) return;
+    if (!confirm(`Transferir ${ids.length} agência(s) de ${nomeDe} para ${nomeExec(para)}?`)) return;
     const agora = new Date().toISOString(), motivo = $("gTrMotivo").value.trim(), levar = $("gTrLevar").checked, hoje = hojeISO();
     let nv = 0, nf = 0;
     ids.forEach((id) => {
@@ -3991,12 +4271,13 @@
       }
     });
     const nomes = ids.map((id) => (dados.agencias.find((a) => a.id === id) || {}).nome).filter(Boolean);
-    notificar(para, "transferencia", "Você recebeu agências", `${ids.length} agência(s) transferida(s) de ${nomeExec(de)} para você: ${nomes.slice(0, 3).join(", ")}${nomes.length > 3 ? "…" : ""}.${levar && (nv || nf) ? ` Vieram junto ${nv} visita(s) agendada(s) e ${nf} follow-up(s).` : ""}`, { de: "gestor" });
-    notificar(de, "transferencia", "Agências transferidas", `${ids.length} agência(s) da sua carteira foram para ${nomeExec(para)}: ${nomes.slice(0, 3).join(", ")}${nomes.length > 3 ? "…" : ""}.`, { de: "gestor" });
+    notificar(para, "transferencia", "Você recebeu agências", `${ids.length} agência(s) transferida(s) de ${nomeDe} para você: ${nomes.slice(0, 3).join(", ")}${nomes.length > 3 ? "…" : ""}.${levar && (nv || nf) ? ` Vieram junto ${nv} visita(s) agendada(s) e ${nf} follow-up(s).` : ""}`, { de: "gestor" });
+    if (de) notificar(de, "transferencia", "Agências transferidas", `${ids.length} agência(s) da sua carteira foram para ${nomeExec(para)}: ${nomes.slice(0, 3).join(", ")}${nomes.length > 3 ? "…" : ""}.`, { de: "gestor" });
     if (!gravar()) return;
     renderGestor(); renderTransfLista();
     $("gTrMotivo").value = "";
-    aviso("gTrMsg", `${ids.length} agência(s) transferida(s)${levar ? `, com ${nv} visita(s) e ${nf} follow-up(s)` : ""}. Envie o arquivo de ${nomeExec(para).split(" ")[0]} e de ${nomeExec(de).split(" ")[0]} em Agendamentos para executivos.`);
+    if (agSyncAtivo()) { sincronizarAgencias(false); aviso("gTrMsg", `${ids.length} agência(s) transferida(s). Elas chegam à carteira de ${nomeExec(para).split(" ")[0]} na próxima sincronização${levar && (nv || nf) ? `; as ${nv} visita(s) e ${nf} follow-up(s) ainda vão pelo arquivo em Agendamentos para executivos` : ""}.`); }
+    else aviso("gTrMsg", `${ids.length} agência(s) transferida(s)${levar ? `, com ${nv} visita(s) e ${nf} follow-up(s)` : ""}. Envie o arquivo de ${nomeExec(para).split(" ")[0]} e de ${nomeDe.split(" ")[0]} em Agendamentos para executivos.`);
   });
 
   function renderEnvios() {
@@ -4047,7 +4328,12 @@
     return ord;
   }
   const chavePartida = () => `agenda-v1:partida:${execAtual()}`;
-  const lerPartida = () => { try { return JSON.parse(localStorage.getItem(chavePartida())) || null; } catch (e) { return null; } };
+  const lerPartida = () => {
+    let antigo = null; try { antigo = JSON.parse(localStorage.getItem(chavePartida())) || null; } catch (e) {}
+    if (!(window.COFRE && COFRE.ativo)) return antigo;
+    if (antigo) { COFRE.kvSet("partida", antigo); try { localStorage.removeItem(chavePartida()); } catch (e) {} } // passa para o cofre
+    return COFRE.kvGet("partida") || null;
+  };
   const pd = { sel: [], ordem: null, gps: null, centro: null, fila: 0, local: null };
   function cidadesMinhas() { return [...new Set(minhasAgencias().filter((a) => a.status !== "Inativo" && a.cidade).map((a) => a.cidade.trim()))].sort((a, b) => a.localeCompare(b, "pt-BR")); }
   function abrirPlanejador(dia) {
@@ -4263,7 +4549,7 @@
     $("ptRemover").hidden = !pt; mostrar("ptErro", ""); ptGpsPos = null; $("ptGpsSt").textContent = ""; $("ptGpsSt").className = "cep-st";
     abrirOv("partidaSheet");
   }
-  function salvarPartida(o) { try { localStorage.setItem(chavePartida(), JSON.stringify(o)); } catch (e) {} }
+  function salvarPartida(o) { if (window.COFRE && COFRE.ativo) { COFRE.kvSet("partida", o); return; } try { localStorage.setItem(chavePartida(), JSON.stringify(o)); } catch (e) {} }
   $("ptForm").addEventListener("submit", async (e) => {
     e.preventDefault(); mostrar("ptErro", "");
     const rua = $("ptEnd").value.trim().replace(/,\s*$/, ""), num = $("ptNum").value.trim(), compl = $("ptCompl").value.trim();
@@ -4310,7 +4596,7 @@
     } catch (err) { status(err.message, "erro"); }
     finally { bt.disabled = false; }
   });
-  $("ptRemover").addEventListener("click", () => { if (!confirm("Remover o endereço de partida?")) return; try { localStorage.removeItem(chavePartida()); } catch (e) {} abrirPartida(); if (!$("planDia").hidden) { $("pdPartida").value = "primeira"; renderPlanejador(); } });
+  $("ptRemover").addEventListener("click", () => { if (!confirm("Remover o endereço de partida?")) return; try { localStorage.removeItem(chavePartida()); } catch (e) {} if (window.COFRE && COFRE.ativo) COFRE.kvSet("partida", null); abrirPartida(); if (!$("planDia").hidden) { $("pdPartida").value = "primeira"; renderPlanejador(); } });
 
   /* Visão do dia (Agenda): distâncias entre as visitas e ordem sugerida */
   function roteiroDoDia(doDia) {
@@ -4366,7 +4652,8 @@
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); pedidoInstalar = e; });
   window.addEventListener("appinstalled", () => { pedidoInstalar = null; avisoFlutuante("App instalado! Procure o ícone “Agenda Visual” na tela inicial."); });
   if ("serviceWorker" in navigator && podeInstalarAqui() && !/claude\.ai|claudeusercontent/.test(location.hostname)) {
-    window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+    const registrarSw = () => { navigator.serviceWorker.register("sw.js").catch(() => {}); };
+    if (document.readyState === "complete") registrarSw(); else window.addEventListener("load", registrarSw);
   }
   function abrirInstalar() {
     const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && "ontouchend" in document), android = /Android/.test(ua);
@@ -4489,6 +4776,78 @@
   $("iniFechar").addEventListener("click", () => abrirFecharDia());
   document.addEventListener("click", (e) => { const b = e.target.closest("[data-fechar-dia]"); if (b) abrirFecharDia(b.dataset.fecharDia); });
 
+  /* ---------- Tema (automático, escuro, claro) ---------- */
+  function temaAtual() { try { return localStorage.getItem("agenda-v1:tema") || ""; } catch (e) { return ""; } }
+  function temaRotulo() { const t = temaAtual(); return t === "escuro" ? "escuro" : t === "claro" ? "claro" : "automático"; }
+  function ciclarTema() {
+    const prox = { "": "escuro", escuro: "claro", claro: "" }[temaAtual()];
+    try { prox ? localStorage.setItem("agenda-v1:tema", prox) : localStorage.removeItem("agenda-v1:tema"); } catch (e) {}
+    prox ? document.documentElement.setAttribute("data-tema", prox) : document.documentElement.removeAttribute("data-tema");
+    avisoFlutuante("Tema: " + temaRotulo() + ".");
+  }
+
+  /* ---------- Modo teste: dados de exemplo e um acesso por perfil (sem servidor) ---------- */
+  const DEMO_PERFIS = { admin: ["Teste ADM", "teste.adm@demo.teste"], gestor: ["Teste Gestor", "teste.gestor@demo.teste"], executivo: ["Bruno Reis", "exec-2"] };
+  function equipeDemo() { return EXECUTIVOS_LOCAIS.map((e) => ({ id: e.id, nome: e.nome, email: e.id + "@demo.teste", ativo: true })); }
+  function apiDemo(acao) {
+    if (acao === "sessao") return Promise.resolve({ ok: true, usuario: SESSAO.usuario, equipe: SESSAO.equipe });
+    if (acao === "usuarios") {
+      const base = (e, p, extra) => Object.assign({ email: e.email, nome: e.nome, nomeApp: e.nome, perfil: p, respondeA: p === "executivo" ? "teste.gestor@demo.teste" : "", ativo: true, id: e.id || e.email, temPin: true, bloqueado: false, bloqueadoInatividade: false, ultimoAcesso: new Date().toISOString() }, extra || {});
+      const us = [base({ email: "teste.adm@demo.teste", nome: "Teste ADM" }, "admin"), base({ email: "teste.gestor@demo.teste", nome: "Teste Gestor" }, "gestor")]
+        .concat(equipeDemo().map((e, i) => base(e, "executivo", i === 7 ? { bloqueadoInatividade: true, ultimoAcesso: new Date(Date.now() - 20 * 864e5).toISOString() } : {})));
+      return Promise.resolve({ ok: true, usuarios: us, gestores: [{ email: "teste.gestor@demo.teste", nome: "Teste Gestor", nomeApp: "Teste Gestor", id: "teste.gestor@demo.teste" }] });
+    }
+    const er = new Error("Modo teste: esta ação precisa do servidor e não está disponível aqui."); er.codigo = "demo"; return Promise.reject(er);
+  }
+  function entrarDemo(perfil) {
+    const [nome, id] = DEMO_PERFIS[perfil];
+    const usuario = { email: perfil === "executivo" ? id + "@demo.teste" : id, nome, nomeApp: nome, nomeCompleto: nome, perfil, id, respondeA: perfil === "executivo" ? "teste.gestor@demo.teste" : "" };
+    try { localStorage.removeItem("agenda-v1:demo-dados"); localStorage.removeItem("agenda-v1:boasvindas:" + usuario.email); localStorage.setItem(CH_SESSAO, JSON.stringify({ token: "demo", demo: true, usuario, equipe: equipeDemo(), em: Date.now() })); } catch (e) {}
+    BIO.liberar(); location.reload();
+  }
+  if (URL_API && !SESSAO && $("loginCartao")) {
+    $("loginCartao").insertAdjacentHTML("afterend", '<div style="margin-top:16px;text-align:center"><button type="button" class="link" id="demoAbrir" style="color:#cfe3ff">🧪 Testar com dados de exemplo</button><div id="demoOpc" style="display:none;margin-top:10px;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn" data-demo="admin">ADM</button><button type="button" class="btn" data-demo="gestor">Gestor</button><button type="button" class="btn" data-demo="executivo">Executivo</button></div></div>');
+    $("demoAbrir").addEventListener("click", () => { $("demoOpc").style.display = $("demoOpc").style.display === "flex" ? "none" : "flex"; });
+    $("demoOpc").addEventListener("click", (e) => { const b = e.target.closest("[data-demo]"); if (b) entrarDemo(b.dataset.demo); });
+  }
+  /* ---------- Bloqueio por digital/rosto: tela e ativação ---------- */
+  async function tentarDesbloquear(auto) {
+    const err = (t) => { $("bioErro").textContent = t || ""; $("bioErro").hidden = !t; };
+    err(""); $("bioDesbloquear").disabled = true;
+    try { await BIO.conferir(); BIO.liberar(); $("bioLock").hidden = true; }
+    catch (e) { if (!auto) err("Não foi possível confirmar. Tente de novo ou entre com o PIN."); }
+    $("bioDesbloquear").disabled = false;
+  }
+  function mostrarBloqueio() {
+    if (!SESSAO) return;
+    try { $("bioLogo").src = document.querySelector("#entrada img").src; } catch (e) {}
+    $("bioNome").textContent = SESSAO.usuario.nome;
+    $("bioErro").hidden = true; $("bioLock").hidden = false;
+    setTimeout(() => tentarDesbloquear(true), 250);
+  }
+  $("bioDesbloquear").addEventListener("click", () => tentarDesbloquear(false));
+  $("bioUsarPin").addEventListener("click", () => { $("bioLock").hidden = true; sair(); });
+  async function ativarBio() {
+    try {
+      await BIO.ativar(SESSAO.usuario.email, SESSAO.usuario.nome);
+      BIO.liberar(); avisoFlutuante("Digital/rosto ativado. O app vai pedir ao ser aberto.");
+    } catch (e) {
+      avisoFlutuante(e && e.name === "NotAllowedError" ? "Não ativado: cancelado ou não permitido." : "Este aparelho não permitiu ativar a digital/rosto.");
+    }
+  }
+  if (SESSAO) {
+    // trava na hora, antes de verificar se o aparelho suporta (evita mostrar o app aberto)
+    if (BIO.ativoPara(SESSAO.usuario.email) && !BIO.liberadoNestaSessao()) mostrarBloqueio();
+    BIO.checar().then((ok) => {
+      if (!ok) return;
+      let jaDisse = ""; try { jaDisse = localStorage.getItem("agenda-v1:bioDica"); } catch (e) {}
+      if (!BIO.ativoPara(SESSAO.usuario.email) && !jaDisse) {
+        try { localStorage.setItem("agenda-v1:bioDica", "1"); } catch (e) {}
+        setTimeout(() => avisoFlutuante("Dica: no menu ☰ você pode ativar a digital/rosto para abrir o app."), 2500);
+      }
+    });
+  }
+
   /* ---------- Login (Fase 2) ---------- */
   if (URL_API) {
     $("cartaoLocal").hidden = true; $("loginCartao").hidden = false;
@@ -4508,8 +4867,12 @@
         : "Use o código que você recebeu por e-mail ou do seu gestor.";
       ["lgCodigo", "lgPinNovo", "lgPinNovo2"].forEach((id) => { $(id).value = ""; }); passo(3);
     };
-    const entrou = (j) => { guardarSessao(j); lgOk("Tudo certo! Abrindo…"); setTimeout(() => location.reload(), 300); };
+    const entrou = async (j) => { guardarSessao(j); BIO.liberar(); lgOk("Tudo certo! Abrindo…"); try { await COFRE.guardarChave(j.usuario.email, j.chave); } catch (e) {} setTimeout(() => location.reload(), 300); };
     try { $("lgEmail").value = localStorage.getItem("agenda-v1:ultimoEmail") || ""; } catch (e) {}
+    setTimeout(() => { try { // vindo do botão "Abrir o app e entrar" do e-mail: #c=CÓDIGO&e=EMAIL
+      const h = new URLSearchParams(location.hash.replace(/^#/, "")), c = (h.get("c") || "").replace(/\D/g, ""), e = (h.get("e") || "").trim().toLowerCase();
+      if (c && e) { lgEmail = e; $("lgEmail").value = e; irCodigo(false); $("lgCodigo").value = c; $("lgCodDica").textContent = "Código preenchido pelo link do e-mail. Agora crie o seu PIN."; history.replaceState(null, "", location.pathname + location.search); }
+    } catch (e) {} }, 0);
     $("lgContinuar").addEventListener("click", async () => {
       lgErr(""); lgOk(""); lgEmail = $("lgEmail").value.trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(lgEmail)) { lgErr("Digite um e-mail válido."); return; }
@@ -4555,7 +4918,7 @@
       if (mudou) { guardarSessao(j, true); if (avisar !== null) { try { sessionStorage.setItem("agenda-v1:avisoSessao", "Sua equipe ou perfil foi atualizado."); } catch (e) {} location.reload(); } }
       else if (avisar) avisoFlutuante("Tudo atualizado.");
     } catch (e) {
-      if (e.codigo === "sessao_invalida" || e.codigo === "sem_acesso") { encerrarSessao(); alert(e.message); location.reload(); }
+      if (e.codigo === "sessao_invalida" || e.codigo === "sem_acesso" || e.codigo === "inativo") { encerrarSessao(); alert(e.message); location.reload(); }
     }
   }
   try { const t = sessionStorage.getItem("agenda-v1:avisoSessao"); if (t) { sessionStorage.removeItem("agenda-v1:avisoSessao"); setTimeout(() => avisoFlutuante(t), 400); } } catch (e) {}
@@ -4597,20 +4960,21 @@
   function linhaUsuario(u, adm) {
     const tags = [`<span class="us-tag">${PERFIL_NOME[u.perfil] || u.perfil}</span>`];
     if (!u.ativo) tags.push('<span class="us-tag cinza">Inativo</span>');
+    else if (u.bloqueadoInatividade) tags.push('<span class="us-tag alerta">Bloqueado por inatividade</span>');
     else if (u.bloqueado) tags.push('<span class="us-tag alerta">Bloqueado</span>');
     else if (!u.temPin) tags.push('<span class="us-tag cinza">Ainda não criou PIN</span>');
     const podeSel = adm && u.perfil === "executivo";
     const podePin = u.ativo && u.email !== SESSAO.usuario.email && (adm || u.perfil === "executivo");
     return `<div class="us-linha">${podeSel ? `<input type="checkbox" data-us-sel="${esc(u.email)}" ${US.sel.has(u.email) ? "checked" : ""} aria-label="Selecionar ${esc(u.nomeApp)}">` : ""}
-      <div class="us-info"><b>${esc(u.nomeApp)}</b><small>${esc(u.email)}</small><div>${tags.join("")}</div></div>
-      <div class="us-acoes">${podePin ? `<button type="button" class="btn" data-us-pin="${esc(u.email)}" title="Redefinir PIN">🔑</button>` : ""}${adm ? `<button type="button" class="btn" data-us-editar="${esc(u.email)}">Editar</button>` : ""}</div></div>`;
+      <div class="us-info"><b>${esc(u.nomeApp)}</b><small>${esc(u.email)}</small>${u.ultimoAcesso ? `<small>Último acesso: ${esc(new Date(u.ultimoAcesso).toLocaleDateString("pt-BR"))}</small>` : ""}<div>${tags.join("")}</div></div>
+      <div class="us-acoes">${podePin ? `<button type="button" class="btn" data-us-pin="${esc(u.email)}" title="${u.bloqueadoInatividade ? "Liberar acesso (redefine o PIN)" : "Redefinir PIN"}">🔑</button>` : ""}${adm ? `<button type="button" class="btn" data-us-editar="${esc(u.email)}">Editar</button>` : ""}</div></div>`;
   }
   function renderUsuarios() {
     const adm = PERFIL === "admin", c = $("usCorpo");
     $("usSub").textContent = adm ? `${US.lista.length} usuários · ${US.gestores.length} gestores` : `${US.lista.filter((u) => u.perfil === "executivo").length} executivos na sua equipe`;
     let h = adm ? `<div class="us-abas"><button type="button" class="btn" data-us-aba="usuarios" aria-pressed="${US.aba === "usuarios"}">Usuários</button><button type="button" class="btn" data-us-aba="auditoria" aria-pressed="${US.aba === "auditoria"}">Auditoria</button></div>` : "";
     if (US.codigo) h += `<div class="us-cod"><b>Código de acesso de ${esc(US.codigo.nome)}</b><div class="num">${esc(US.codigo.codigo)}</div>
-      <div class="dica">Vale por ${US.codigo.validadeHoras} horas. ${US.codigo.enviado ? "Também enviamos por e-mail para a pessoa." : "<b>O e-mail não foi enviado:</b> passe o código diretamente."} Ela entra com o e-mail, digita o código e cria um PIN novo. Você não vê o PIN dela.</div>
+      <div class="dica">${US.codigo.liberado ? "<b>Acesso liberado após inatividade.</b> " : ""}Vale por ${US.codigo.validadeHoras} horas. ${US.codigo.enviado ? "Também enviamos por e-mail para a pessoa." : "<b>O e-mail não foi enviado:</b> passe o código diretamente."} Ela entra com o e-mail, digita o código e cria um PIN novo. Você não vê o PIN dela.</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button type="button" class="btn" data-us="copiar">Copiar</button><button type="button" class="btn" data-us="whats">Enviar no WhatsApp</button><button type="button" class="link" data-us="fecharcod">Fechar</button></div></div>`;
     if (US.aba === "auditoria") { c.innerHTML = h + renderAuditoria(); return; }
     if (US.editando) { c.innerHTML = h + renderEdicao(); return; }
@@ -4619,13 +4983,14 @@
       if (t && !norm(u.nomeApp + " " + u.nome + " " + u.email).includes(t)) return false;
       if (US.filtro === "todos") return true;
       if (US.filtro === "inativos") return !u.ativo;
+      if (US.filtro === "bloqInat") return u.ativo && u.bloqueadoInatividade;
       if (US.filtro === "lideres") return u.perfil !== "executivo";
       if (US.filtro === "semPin") return u.ativo && !u.temPin;
       return u.respondeA === US.filtro;
     };
     const vis = US.lista.filter(filtroOk).sort((a, b) => a.nomeApp.localeCompare(b.nomeApp, "pt-BR"));
     h += `<div class="us-filtros"><input type="search" id="usBusca" placeholder="Buscar nome ou e-mail" value="${esc(US.busca)}">${adm ? '<button type="button" class="btn prim" data-us="novo">+ Novo</button>' : ""}</div>`;
-    if (adm) h += `<select id="usFiltro" style="margin-bottom:6px"><option value="todos">Todos</option>${US.gestores.map((g) => `<option value="${esc(g.email)}">Equipe de ${esc(g.nomeApp)}</option>`).join("")}<option value="lideres">ADMs e gestores</option><option value="semPin">Ainda não criaram PIN</option><option value="inativos">Inativos</option></select>`;
+    if (adm) h += `<select id="usFiltro" style="margin-bottom:6px"><option value="todos">Todos</option>${US.gestores.map((g) => `<option value="${esc(g.email)}">Equipe de ${esc(g.nomeApp)}</option>`).join("")}<option value="lideres">ADMs e gestores</option><option value="semPin">Ainda não criaram PIN</option><option value="inativos">Inativos</option><option value="bloqInat">Bloqueados por inatividade</option></select>`;
     const grupos = [];
     if (adm) {
       grupos.push(["ADMs", vis.filter((u) => u.perfil === "admin")], ["Gestores", vis.filter((u) => u.perfil === "gestor")]);
@@ -4762,6 +5127,7 @@
     if (!confirm("Última confirmação: apagar TODOS os dados deste aparelho?\n\nIsso não pode ser desfeito.")) return;
     try { Object.keys(localStorage).filter((k) => k.startsWith("agenda-v1:") && k !== "agenda-v1:modoVisao").forEach((k) => localStorage.removeItem(k)); } catch (er) {}
     try { await new Promise((ok) => { const r = indexedDB.deleteDatabase("agenda-v1-anexos"); r.onsuccess = r.onerror = r.onblocked = () => ok(); setTimeout(ok, 1500); }); } catch (er) {}
+    try { await COFRE.apagarTudo(); } catch (er) {}
     try { sessionStorage.setItem("agenda-v1:limpo", "1"); } catch (er) {}
     location.reload();
   });
@@ -5037,6 +5403,7 @@
   function pedirExclusao(tipo, id) {
     if (tipo === "agencia") {
       const a = dados.agencias.find((x) => x.id === id); if (!a) return;
+      if (a.srv) { alert(`“${a.nome}” faz parte da carteira oficial e não pode ser excluída pelo app.\n\nSe ela parou de comprar, edite e mude o status para Inativo. Cadastro duplicado ou errado: avise o ADM.`); return; }
       const nv = dados.visitas.filter((v) => v.clienteId === id).length, nf = dados.followups.filter((f) => f.clienteId === id).length;
       if (!confirm(`Excluir a agência “${a.nome}”?${nv || nf ? `\n\nJunto com ela saem ${nv} visita(s) e ${nf} follow-up(s) dela.` : ""}\n\nUse para cadastro duplicado ou feito por engano. Se a agência só parou de comprar, prefira mudar o status para Inativo.\n\nVocê pode restaurar depois em Menu › Itens excluídos.`)) return;
       excluirItens("agencia", a, "");
@@ -5185,8 +5552,16 @@
     return idbP;
   }
   const idbOp = (modo, fn) => idb().then((db) => new Promise((ok, falha) => { const tx = db.transaction("anexos", modo), st = tx.objectStore("anexos"); const r = fn(st); tx.oncomplete = () => ok(r && r.result); tx.onerror = () => falha(tx.error); }));
-  const putAnexo = (o) => idbOp("readwrite", (st) => st.put(o));
-  const getAnexo = (id) => idbOp("readonly", (st) => st.get(id));
+  // com o cofre ativo, o arquivo fica cifrado no aparelho (só os metadados ficam abertos)
+  const putAnexo = async (o) => {
+    if (window.COFRE && COFRE.ativo && o.blob) o = Object.assign({}, o, { blob: null, cif: await COFRE.cifrarBytes(new Uint8Array(await o.blob.arrayBuffer())) });
+    return idbOp("readwrite", (st) => st.put(o));
+  };
+  const getAnexo = async (id) => {
+    const x = await idbOp("readonly", (st) => st.get(id));
+    if (x && x.cif) { if (!(window.COFRE && COFRE.ativo)) return null; x.blob = new Blob([await COFRE.decifrarBytes(x.cif)], { type: x.tipo }); delete x.cif; }
+    return x;
+  };
   const fTam = (b) => (b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1).replace(".", ",")} MB`);
   async function comprimirImagem(file) {
     const url = URL.createObjectURL(file);
@@ -5275,7 +5650,8 @@
     if (!confirm(`Incluir ${ids.length} foto(s)/anexo(s) (cerca de ${fTam(tam * 1.37)}) no backup?`)) return;
     const arqs = [];
     for (const id of ids) { try { const x = await getAnexo(id); if (x) arqs.push({ id: x.id, visitaId: x.visitaId, executivoId: x.executivoId, nome: x.nome, tipo: x.tipo, tamanho: x.tamanho, criadoEm: x.criadoEm, b64: await blobParaB64(x.blob) }); } catch (e) {} }
-    const url = URL.createObjectURL(new Blob([JSON.stringify({ app: "agenda-comercial-v1", exportadoEm: new Date().toISOString(), ...dados, anexosArquivos: arqs })], { type: "application/json" }));
+    let txt; try { txt = await textoDoArquivo({ app: "agenda-comercial-v1", exportadoEm: new Date().toISOString(), ...dados, anexosArquivos: arqs }); } catch (e) { avisoFlutuante(e.message); return; }
+    const url = URL.createObjectURL(new Blob([txt], { type: "application/json" }));
     const a = document.createElement("a"); a.href = url; a.download = `agenda-backup-com-fotos-${hojeISO()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 3000);
     localStorage.setItem(CHAVE_ULT_BACKUP, new Date().toISOString()); mostrarUltimoBackup();
     avisoFlutuante(`Backup com ${arqs.length} anexo(s) exportado.`);
@@ -5511,12 +5887,13 @@
     aplicarFiltroVisitas();
     renderInicio(minhas, nomeAg);
     setTimeout(renderDicas, 0);
+    renderSyncAg();
     carregarMiniaturas($("listaVisitas"));
 
     const termo = norm($("buscaAgencia").value), termoDig = soDig($("buscaAgencia").value);
     const agSt = $("agStatus").value, agOrd = $("agOrdem").value;
     const sit = new Map(ags.map((a) => [a.id, situacaoAgencia(a)]));
-    let agsLista = (!termo ? ags : ags.filter((a) => norm(a.nome).includes(termo) || norm(a.cidade).includes(termo) || norm(a.contato).includes(termo) || (termoDig.length >= 3 && soDig(a.cnpj).includes(termoDig))))
+    let agsLista = (!termo ? ags : ags.filter((a) => norm(a.nome).includes(termo) || norm(a.cidade).includes(termo) || norm(a.contato).includes(termo) || (termoDig.length >= 3 && (soDig(a.cnpj).includes(termoDig) || String(a.codigoCvc || "") === termoDig))))
       .filter((a) => {
         if (!agSt) return true;
         if (agSt === "freq") return freqAgencia(a).fora;
@@ -5541,13 +5918,267 @@
           const st = sit.get(a.id);
           const dU = st.ult ? diasDesde(st.ult) : null;
           const linhaVisita = `<br><small style="color:${dU === null || dU >= 45 ? "#a15c00" : "#566B82"}">${st.ult ? `Última visita: ${fData(st.ult)} (há ${dU} dia${dU === 1 ? "" : "s"})` : "Nunca visitada"}${st.prox ? ` · Próxima: ${fData(st.prox.data)}` : ""}</small>`;
-          return `<li class="ag2"><div data-historico="${a.id}" style="cursor:pointer"><b>${esc(a.nome)}</b> <span class="tag ${(a.status || "Prospect").toLowerCase()}">${esc(a.status || "Prospect")}</span><br>${a.status !== "Inativo" ? `${seloSaude(a)}${seloClasse(a)}<br>` : ""}<small>${esc(a.cidade || "—")}${a.estado ? "/" + esc(a.estado) : ""} · ${esc(a.segmento)} · ${nVis} visita(s) realizada(s)${a.contato ? " · " + esc(a.contato) : ""}</small>${linhaVisita}${incompleto ? `<br><small style="color:#a15c00">Cadastro incompleto: falta contato</small>` : ""}</div>
-            <div class="acoes-item">${wa ? `<a class="btn wa" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ""}<button type="button" class="btn prim" data-historico="${a.id}">Histórico</button><button type="button" class="btn" data-editar="${a.id}">Editar</button><button type="button" class="btn perigo" data-excluir="agencia:${a.id}" aria-label="Excluir ${esc(a.nome)}">Excluir</button></div></li>`;
+          return `<li class="ag2"><div data-historico="${a.id}" style="cursor:pointer"><b>${esc(a.nome)}</b> <span class="tag ${(a.status || "Prospect").toLowerCase()}">${esc(a.status || "Prospect")}</span><br>${a.status !== "Inativo" ? `${seloSaude(a)}${seloClasse(a)}<br>` : ""}<small>${a.codigoCvc ? `Cód. ${esc(a.codigoCvc)} · ` : ""}${esc(a.cidade || "—")}${a.estado ? "/" + esc(a.estado) : ""}${a.segmento ? ` · ${esc(a.segmento)}` : ""} · ${nVis} visita(s) realizada(s)${a.contato ? " · " + esc(a.contato) : ""}</small>${linhaVisita}${incompleto ? `<br><small style="color:#a15c00">Cadastro incompleto: falta contato</small>` : ""}</div>
+            <div class="acoes-item">${wa ? `<a class="btn wa" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ""}<button type="button" class="btn prim" data-historico="${a.id}">Histórico</button><button type="button" class="btn" data-editar="${a.id}">Editar</button>${a.srv ? "" : `<button type="button" class="btn perigo" data-excluir="agencia:${a.id}" aria-label="Excluir ${esc(a.nome)}">Excluir</button>`}</div>${a._syncErro ? `<small style="color:#a8261d">⚠️ Não enviada ao servidor: ${esc(a._syncErro)}</small>` : ""}</li>`;
         }).join("")
       : `<li class="vazio">Nenhuma agência cadastrada ainda.</li>`;
   }
+  /* =====================================================================
+     Etapa 2a · carteira de agências sincronizada com o servidor
+     - As agências vêm da aba Agencias da planilha (cada perfil recebe só o que pode ver).
+     - O aparelho guarda uma cópia e funciona sem internet; o que for alterado aqui vai
+       para o servidor na sincronização seguinte (ao abrir, a cada minuto se houver
+       alteração, ao voltar para o app e ao reconectar).
+     - Para saber o que mudou, cada agência guarda a "impressão" (_h) de como veio do servidor.
+     ===================================================================== */
+  var syncAg = { rodando: false, timer: null, ultimaTentativa: 0 };
+  function agSyncAtivo() { return !!(URL_API && SESSAO && !SESSAO.demo); }
+  function chaveSyncAg() { return "agenda-v1:syncAg:" + (SESSAO ? SESSAO.usuario.email : ""); }
+  // O estado da sincronização fica junto com os dados (mesma gravação): se um não for gravado, o outro também não,
+  // e a próxima sincronização baixa a carteira inteira de novo.
+  function lerSyncAg() { const m = (dados && dados.syncAg) || {}; return Object.assign({}, m[chaveSyncAg()] || {}); }
+  function gravarSyncAg(st) { if (!dados) return; dados.syncAg = Object.assign({}, dados.syncAg || {}, { [chaveSyncAg()]: st }); try { localStorage.removeItem(chaveSyncAg()); } catch (e) {} }
+  var AG_ENVIA = ["nome", "executivoId", "cnpj", "compra", "contrato", "segmento", "potencial", "status", "contato", "cargo", "telefone", "whatsapp", "email",
+    "endereco", "rua", "numero", "complemento", "bairro", "cidade", "estado", "cep", "lat", "lng", "locFonte", "observacoes", "concorrentes", "participacao", "transferencias", "historicoStatus"];
+  var AG_LISTAS = { concorrentes: 1, transferencias: 1, historicoStatus: 1 };
+  function valAg(a, k) {
+    const v = a[k];
+    if (AG_LISTAS[k]) return Array.isArray(v) ? v : [];
+    if (k === "compra" || k === "contrato") return !!v;
+    if (k === "lat" || k === "lng") return typeof v === "number" && !isNaN(v) ? Math.round(v * 1e6) / 1e6 : "";
+    return v === undefined || v === null ? "" : v;
+  }
+  function hashAg(a) {
+    const t = JSON.stringify(AG_ENVIA.map((k) => valAg(a, k)));
+    let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+    return String(h);
+  }
+  function agSuja(a) {
+    if (!a || a.exemplo || a.foraCarteira) return false;
+    const h = hashAg(a);
+    if (a._hErr && h === a._hErr) return false; // recusada pelo servidor e não mudou desde então
+    if (a.srv) return h !== a._h;
+    // cadastrada neste aparelho e ainda não enviada
+    return PERFIL === "executivo" ? a.executivoId === SESSAO.usuario.id : !!a.executivoId && EXECUTIVOS.some((e) => e.id === a.executivoId);
+  }
+  function paraEnvioAg(a) {
+    const o = { id: a.id, criadoEm: a.criadoEm || "" };
+    if (a.srv && a._sAt) o._base = a._sAt;
+    AG_ENVIA.forEach((k) => { o[k] = valAg(a, k); });
+    if (PERFIL === "executivo") delete o.executivoId;
+    return o;
+  }
+  function agDoServidor(campos, linha) {
+    const o = { srv: true };
+    campos.forEach((k, i) => {
+      const v = linha[i];
+      if (v === "" || v === null || v === undefined || v === false) return;
+      if (AG_LISTAS[k] && (!Array.isArray(v) || !v.length)) return;
+      if ((k === "lat" || k === "lng") && typeof v !== "number") return;
+      o[k] = v;
+    });
+    o._sAt = o.atualizadoEm || "";
+    o._h = hashAg(o);
+    return o;
+  }
+  function agendarSyncAg(ms) {
+    if (!syncAg || !agSyncAtivo()) return;
+    clearTimeout(syncAg.timer);
+    syncAg.timer = setTimeout(() => { if (!syncAg.rodando && dados.agencias.some(agSuja)) sincronizarAgencias(false); }, ms || 2500);
+  }
+  async function sincronizarAgencias(manual) {
+    if (!agSyncAtivo() || !syncAg || syncAg.rodando) return;
+    if (navigator.onLine === false) { if (manual) avisoFlutuante("Sem internet agora. A carteira atualiza sozinha quando a conexão voltar."); renderSyncAg(); return; }
+    const st = lerSyncAg();
+    // rede de segurança: se o aparelho tem menos agências do que o servidor informou da última vez, baixa tudo
+    if (st.desde && st.total && dados.agencias.filter((a) => a.srv).length < st.total) st.desde = "";
+    const primeira = !st.desde;
+    syncAg.rodando = true; syncAg.ultimaTentativa = Date.now(); renderSyncAg();
+    if (primeira) avisoFlutuante("Carregando a carteira de agências…");
+    const sujas = dados.agencias.filter(agSuja).slice(0, 400);
+    const hEnv = new Map(sujas.map((a) => [a.id, hashAg(a)]));
+    try {
+      const j = await api("sincronizarAgencias", { token: SESSAO.token, desde: st.desde || "", enviar: sujas.map(paraEnvioAg) });
+      const r = aplicarSyncAg(j, hEnv, st);
+      if (primeira) avisoFlutuante(`Carteira carregada: ${r.total} agência(s).`);
+      else if (manual) avisoFlutuante(r.resumo);
+      else if (r.rejeitadas) avisoFlutuante(`${r.rejeitadas} alteração(ões) de agência não foram aceitas pelo servidor. Veja em Agências.`);
+    } catch (e) {
+      st.erro = e.message; gravarSyncAg(st);
+      if (e.codigo === "sessao_invalida" || e.codigo === "sem_acesso" || e.codigo === "inativo") { encerrarSessao(); alert(e.message); location.reload(); return; }
+      if (manual || primeira) avisoFlutuante("Não foi possível atualizar a carteira: " + e.message);
+    } finally { syncAg.rodando = false; renderSyncAg(); }
+  }
+  function aplicarSyncAg(j, hEnv, st) {
+    const porId = new Map(dados.agencias.map((a) => [a.id, a]));
+    const rej = new Map((j.rejeitadas || []).map((r) => [r.id, r]));
+    const meu = PERFIL === "executivo" ? SESSAO.usuario.id : null, trocadas = new Set();
+    let chegaram = 0;
+    (j.linhas || []).forEach((l) => {
+      const s = agDoServidor(j.campos, l), loc = porId.get(s.id);
+      if (loc && !rej.has(s.id)) {
+        const h = hashAg(loc);
+        // mexida no aparelho depois do envio (ou ainda não enviada): fica a do aparelho, que sobe na próxima
+        if (hEnv.has(s.id) ? h !== hEnv.get(s.id) : agSuja(loc)) return;
+      }
+      if (loc) { Object.keys(loc).forEach((k) => { delete loc[k]; }); Object.assign(loc, s); }
+      else { dados.agencias.push(s); porId.set(s.id, s); if (st.desde && meu && s.executivoId === meu) chegaram++; }
+      trocadas.add(s.id);
+    });
+    let rejeitadas = 0;
+    rej.forEach((r, id) => {
+      const loc = porId.get(id); if (!loc || trocadas.has(id)) return;
+      loc._syncErro = r.motivo; loc._hErr = hEnv.get(id) || hashAg(loc); rejeitadas++;
+    });
+    // saíram da carteira (transferidas para outra pessoa ou excluídas pelo ADM)
+    const vis = new Set(j.ids || []);
+    let sairam = 0;
+    dados.agencias = dados.agencias.filter((a) => {
+      if (!a.srv || vis.has(a.id) || agSuja(a)) return true;
+      sairam++;
+      const usada = dados.visitas.some((v) => v.clienteId === a.id) || dados.followups.some((f) => f.clienteId === a.id);
+      if (!usada) return false;
+      Object.assign(a, { srv: false, foraCarteira: true, status: "Inativo", executivoId: "__fora__" }); delete a._h; delete a._hErr;
+      return true; // fica só para o histórico das visitas antigas mostrar o nome
+    });
+    if (chegaram) notificar(meu, "transferencia", "Novas agências na sua carteira", `${chegaram} agência(s) entraram na sua carteira.`, { de: "gestor" });
+    const enviadasOk = [...hEnv.keys()].filter((id) => trocadas.has(id) && !rej.has(id)).length;
+    Object.assign(st, { desde: j.agora, em: new Date().toISOString(), erro: "", total: vis.size });
+    gravarSyncAg(st);
+    gravar(); atualizarTudo();
+    const partes = [`Carteira atualizada: ${vis.size} agência(s)`];
+    if (enviadasOk) partes.push(`${enviadasOk} alteração(ões) enviada(s)`);
+    if (sairam) partes.push(`${sairam} saíram da carteira`);
+    if (rejeitadas) partes.push(`${rejeitadas} não aceita(s)`);
+    return { total: vis.size, rejeitadas, resumo: partes.join(" · ") + "." };
+  }
+  function horaCurta(iso) {
+    const d = new Date(iso); if (isNaN(d)) return "";
+    const hoje = d.toDateString() === new Date().toDateString();
+    return (hoje ? "hoje" : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })) + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
+  function textoSyncCurto() {
+    if (!agSyncAtivo()) return "";
+    const st = lerSyncAg();
+    if (!syncAg) return "";
+    if (syncAg.rodando) return "atualizando…";
+    return st.em ? `atualizada ${horaCurta(st.em)}` : "ainda não carregada";
+  }
+  function renderSyncAg() {
+    if (!syncAg) return;
+    const els = document.querySelectorAll("[data-sync-bar]");
+    if (!agSyncAtivo()) { els.forEach((el) => { el.hidden = true; }); return; }
+    const st = lerSyncAg(), pend = dados.agencias.filter(agSuja).length, recusadas = dados.agencias.filter((a) => a._syncErro && a._hErr && hashAg(a) === a._hErr).length;
+    const t = syncAg.rodando ? "🔄 Atualizando a carteira…"
+      : `☁️ <b>Carteira oficial</b>${st.total !== undefined ? ` · ${st.total} agência(s)` : ""} · ${st.em ? `atualizada ${horaCurta(st.em)}` : "ainda não carregada"}`
+        + (pend ? ` · ${pend} alteração(ões) a enviar` : "") + (navigator.onLine === false ? " · sem internet" : "")
+        + (st.erro ? `<br><span class="erro-s">⚠️ ${esc(st.erro)}</span>` : "") + (recusadas ? `<br><span class="erro-s">⚠️ ${recusadas} agência(s) não aceitas pelo servidor (o motivo aparece nelas).</span>` : "");
+    els.forEach((el) => {
+      el.hidden = false;
+      el.innerHTML = `<span class="t">${t}</span><button type="button" class="link" data-sync-agora ${syncAg.rodando ? "disabled" : ""}>Atualizar</button><button type="button" class="link" data-base-abrir>🔎 Buscar na base</button>`;
+    });
+    if ($("gCarteiraBloco")) {
+      $("gCarteiraBloco").hidden = !ehGestor();
+      const sem = dados.agencias.filter((a) => a.srv && !a.executivoId).length;
+      $("gCarteiraResumo").innerHTML = sem ? `⚠️ <b>${sem}</b> agência(s) da carteira estão <b>sem executivo</b>.` : "Todas as agências da carteira têm executivo.";
+    }
+  }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-sync-agora]")) sincronizarAgencias(true);
+    else if (e.target.closest("[data-base-abrir]")) abrirBaseSheet("");
+  });
+
+  /* ---------- Buscar na Base geral e trazer para a carteira ---------- */
+  function abrirBaseSheet(termo) {
+    if (!agSyncAtivo()) return;
+    const g = ehGestor();
+    $("bsParaBox").hidden = !g;
+    if (g) $("bsPara").innerHTML = `<option value="">Sem executivo (atribuo depois)</option>` + EXECUTIVOS.map((x) => `<option value="${esc(x.id)}">${esc(x.nome)}</option>`).join("");
+    $("bsBusca").value = termo || ""; $("bsErro").hidden = true;
+    $("bsRes").innerHTML = `<p class="dica" style="margin:0">A busca olha a <b>Base geral</b> da Visual (agências que ainda não estão em nenhuma carteira) e mostra também as que já estão na carteira de outro executivo.</p>`;
+    abrirOv("baseSheet"); setTimeout(() => $("bsBusca").focus(), 60);
+    if ((termo || "").trim().length >= 3) buscarNaBase();
+  }
+  async function buscarNaBase() {
+    const q = $("bsBusca").value.trim(), err = (t) => { $("bsErro").textContent = t || ""; $("bsErro").hidden = !t; };
+    err("");
+    if (q.replace(/\s/g, "").length < 3) { err("Digite pelo menos 3 letras ou números."); return; }
+    if (navigator.onLine === false) { err("A busca na base precisa de internet."); return; }
+    $("bsBuscar").disabled = true; $("bsRes").innerHTML = `<p class="dica">Buscando…</p>`;
+    try {
+      const j = await api("buscarAgencias", { token: SESSAO.token, q });
+      const rs = j.resultados || [];
+      $("bsRes").innerHTML = rs.length ? rs.map((r) => {
+        const tags = (r.compra ? ' <span class="tag ativo">Compra</span>' : "") + (r.contrato ? ' <span class="tag ativo">Contrato</span>' : "");
+        const info = [r.codigoCvc ? `Cód. ${esc(r.codigoCvc)}` : "", [r.cidade, r.estado].filter(Boolean).map(esc).join("/"), r.cnpj ? esc(r.cnpj) : ""].filter(Boolean).join(" · ");
+        const acao = r.origem === "base"
+          ? `<div class="acoes-item"><button type="button" class="btn prim" data-puxar="${esc(r.id)}">${ehGestor() ? "Trazer para a carteira" : "Trazer para minha carteira"}</button></div>`
+          : `<small>📌 Já está na carteira de <b>${esc(r.executivo)}</b>. Para trocar, peça a transferência ao gestor.</small>`;
+        return `<div class="bs-item"><b>${esc(r.nome)}</b>${tags}${r.razaoSocial && r.razaoSocial !== r.nome ? `<small>${esc(r.razaoSocial)}</small>` : ""}<small>${info}</small>${acao}</div>`;
+      }).join("") : `<p class="vazio">Nada encontrado para “${esc(q)}”. Se for uma agência nova, cadastre em <b>+ Nova agência</b>.</p>`;
+    } catch (e) { err(e.message); $("bsRes").innerHTML = ""; }
+    $("bsBuscar").disabled = false;
+  }
+  $("bsBuscar").addEventListener("click", buscarNaBase);
+  $("bsBusca").addEventListener("keydown", (e) => { if (e.key === "Enter") buscarNaBase(); });
+  $("bsRes").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-puxar]"); if (!b) return;
+    b.disabled = true; b.textContent = "Trazendo…";
+    try {
+      const j = await api("puxarAgencia", { token: SESSAO.token, id: b.dataset.puxar, para: ehGestor() ? $("bsPara").value : "" });
+      const s = agDoServidor(j.campos, j.linha);
+      const i = dados.agencias.findIndex((a) => a.id === s.id);
+      if (i >= 0) dados.agencias[i] = s; else dados.agencias.push(s);
+      gravar(); atualizarTudo();
+      b.closest(".acoes-item").innerHTML = `<small style="color:#17794a">✅ ${s.executivoId ? (PERFIL === "executivo" ? "Na sua carteira." : `Na carteira de ${esc(nomeExec(s.executivoId))}.`) : "Na carteira, sem executivo."}</small>`;
+      avisoFlutuante(`“${s.nome}” entrou na carteira.`);
+    } catch (er) { b.disabled = false; b.textContent = "Tentar de novo"; $("bsErro").textContent = er.message; $("bsErro").hidden = false; }
+  });
+  $("aBaseBuscar").addEventListener("click", () => abrirBaseSheet($("aNome").value.trim()));
+
+  if (agSyncAtivo()) {
+    if ($("exemploBox")) $("exemploBox").hidden = true; // dados de exemplo não se misturam com a carteira oficial
+    setTimeout(() => sincronizarAgencias(false), 1500);
+    setInterval(() => {
+      const st = lerSyncAg();
+      if (dados.agencias.some(agSuja) || Date.now() - (Date.parse(st.em || "") || 0) > 10 * 60e3) sincronizarAgencias(false);
+    }, 60e3);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && Date.now() - syncAg.ultimaTentativa > 120e3) sincronizarAgencias(false); });
+    window.addEventListener("online", () => sincronizarAgencias(false));
+    window.addEventListener("offline", renderSyncAg);
+  }
+  renderSyncAg();
+
   atualizarTudo();
   buscarRespostas(true);
+
+  /* ---------- Modo teste: carrega os dados por último (depende do resto do app) ---------- */
+  if (SESSAO && SESSAO.demo) {
+    if (!dados.agencias.length) { gerarDemo(); gravar(); atualizarTudo(); }
+    document.body.insertAdjacentHTML("beforeend", '<div id="demoBar" style="position:fixed;right:8px;bottom:8px;z-index:150;background:#b45309;color:#fff;font:600 12px Arial,sans-serif;padding:6px 12px;border-radius:14px;box-shadow:0 2px 8px #0005">🧪 MODO TESTE · ' + SESSAO.usuario.perfil + ' · <u id="demoSair" style="cursor:pointer">sair</u></div>');
+    $("demoSair").addEventListener("click", () => sair());
+  }
+  /* ---------- Boas-vindas do executivo (uma vez) ---------- */
+  function boasVindas() {
+    const k = "agenda-v1:boasvindas:" + SESSAO.usuario.email;
+    try { if (localStorage.getItem(k)) return; localStorage.setItem(k, "1"); } catch (e) {}
+    const bio = BIO.disp && !SESSAO.demo ? '<button type="button" class="btn" id="bvBio" style="margin:2px 0 10px">Ativar agora</button>' : "";
+    document.body.insertAdjacentHTML("beforeend", '<div id="bvBox" style="position:fixed;inset:0;z-index:180;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center"><div style="background:#fff;color:#1f2937;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:20px 18px 24px;font:15px/1.5 Arial,sans-serif">'
+      + '<h2 style="margin:0 0 4px;font-size:20px">Bem-vindo(a)! 👋</h2><p style="margin:0 0 12px;color:#6b7280">3 passos rápidos para começar:</p>'
+      + '<p style="margin:0 0 10px"><b>1. Instale na tela inicial</b><br><small style="color:#6b7280">Menu ⋮ › Ajustes › Instalar o app no celular</small></p>'
+      + '<p style="margin:0"><b>2. Ative a digital/rosto</b><br><small style="color:#6b7280">Para abrir o app sem digitar o PIN (Menu ⋮ › Ajustes)</small></p>' + bio
+      + '<p style="margin:6px 0 12px"><b>3. Registre a sua primeira visita</b></p>'
+      + '<button type="button" class="btn prim" id="bvReg" style="width:100%">Registrar visita</button> <button type="button" class="link" id="bvFechar" style="display:block;margin:10px auto 0">Fechar</button></div></div>');
+    const fechar = () => { const b = $("bvBox"); if (b) b.remove(); };
+    $("bvFechar").addEventListener("click", fechar);
+    $("bvReg").addEventListener("click", () => { fechar(); const r = $("iniRegistrar"); if (r) r.click(); });
+    if ($("bvBio")) $("bvBio").addEventListener("click", () => { ativarBio(); });
+  }
+  if (SESSAO && SESSAO.usuario.perfil === "executivo") setTimeout(boasVindas, 1500);
+};
+(async function () {
+  try { await window.COFRE.preparar(); } catch (e) { console.warn("Cofre indisponível:", e); }
+  window.__agendaPrincipal();
 })();
 </script>
 </body>
